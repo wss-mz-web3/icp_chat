@@ -108,25 +108,25 @@ const App: React.FC = () => {
     }
   };
 
-  // 清空消息
-  const handleClearMessages = async () => {
-    if (!confirm('确定要清空所有消息吗？此操作不可恢复。')) {
-      return;
-    }
+  // 清空消息（已隐藏删除按钮，此函数暂时保留以备后用）
+  // const handleClearMessages = async () => {
+  //   if (!confirm('确定要清空所有消息吗？此操作不可恢复。')) {
+  //     return;
+  //   }
 
-    try {
-      const success = await chatService.clearAllMessages();
-      if (success) {
-        setMessages([]);
-        setMessageCount(0);
-        setError(null);
-      } else {
-        setError('清空消息失败');
-      }
-    } catch (err) {
-      setError('清空消息时发生错误');
-    }
-  };
+  //   try {
+  //     const success = await chatService.clearAllMessages();
+  //     if (success) {
+  //       setMessages([]);
+  //       setMessageCount(0);
+  //       setError(null);
+  //     } else {
+  //       setError('清空消息失败');
+  //     }
+  //   } catch (err) {
+  //     setError('清空消息时发生错误');
+  //   }
+  // };
 
   if (loading) {
     return (
@@ -157,9 +157,10 @@ const App: React.FC = () => {
             <button className="refresh-button" onClick={loadMessages} title="手动刷新消息">
               🔄
             </button>
-            <button className="clear-button" onClick={handleClearMessages} title="清空消息">
+            {/* 删除按钮已隐藏 */}
+            {/* <button className="clear-button" onClick={handleClearMessages} title="清空消息">
               🗑️
-            </button>
+            </button> */}
           </div>
         </div>
 

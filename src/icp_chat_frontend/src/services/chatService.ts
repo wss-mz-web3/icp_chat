@@ -225,8 +225,8 @@ class ChatService {
       // 并行解密所有消息
       const decryptedMessages = await Promise.all(
         messages.map(async (msg) => {
-          // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
-          const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
+        // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
+        const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
           
           // 尝试解密消息文本
           let decryptedText = msg.text;
@@ -245,13 +245,13 @@ class ChatService {
             decryptedText = msg.text;
           }
           
-          return {
-            id: Number(msg.id),
-            author: msg.author,
+        return {
+          id: Number(msg.id),
+          author: msg.author,
             text: decryptedText,
-            timestamp: msg.timestamp,
-            imageId: imageIdValue,
-          };
+          timestamp: msg.timestamp,
+          imageId: imageIdValue,
+        };
         })
       );
       
@@ -284,8 +284,8 @@ class ChatService {
       // 并行解密所有消息
       const decryptedMessages = await Promise.all(
         messages.map(async (msg) => {
-          // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
-          const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
+        // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
+        const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
           
           // 尝试解密消息文本
           let decryptedText = msg.text;
@@ -301,13 +301,13 @@ class ChatService {
             decryptedText = msg.text;
           }
           
-          return {
-            id: Number(msg.id),
-            author: msg.author,
+        return {
+          id: Number(msg.id),
+          author: msg.author,
             text: decryptedText,
-            timestamp: msg.timestamp,
-            imageId: imageIdValue,
-          };
+          timestamp: msg.timestamp,
+          imageId: imageIdValue,
+        };
         })
       );
       return decryptedMessages;

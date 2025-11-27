@@ -6,6 +6,8 @@ import KeyManagement from './KeyManagement';
 import { encryptionService } from '../services/encryptionService';
 import '../App.css';
 
+const PAGE_SIZE = 10;
+
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,27 +18,53 @@ const Chat: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [encryptionAvailable, setEncryptionAvailable] = useState<boolean>(false);
   const [showKeyManagement, setShowKeyManagement] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 加载消息
-  const loadMessages = useCallback(async (forceRefresh: boolean = false) => {
+  // 加载最新一页消息
+  const loadLatestMessages = useCallback(async () => {
     try {
-      const newMessages = await chatService.getLastMessages(50, forceRefresh);
-      setMessages(newMessages);
-      const count = await chatService.getMessageCount(forceRefresh);
-      setMessageCount(count);
+      const pageData = await chatService.getMessagesPage(1, PAGE_SIZE);
+      setMessages(pageData.messages);
+      setMessageCount(pageData.total);
+      setCurrentPage(1);
+      setHasMoreMessages(pageData.totalPages > 1);
     } catch (err) {
       console.error('加载消息失败:', err);
     }
   }, []);
+
+  // 加载更多历史消息
+  const loadOlderMessages = useCallback(async () => {
+    if (isLoadingMore || !hasMoreMessages) {
+      return;
+    }
+    try {
+      setIsLoadingMore(true);
+      const nextPage = currentPage + 1;
+      const pageData = await chatService.getMessagesPage(nextPage, PAGE_SIZE);
+      if (pageData.messages.length > 0) {
+        setMessages((prev) => [...pageData.messages, ...prev]);
+        setCurrentPage(nextPage);
+        setHasMoreMessages(nextPage < pageData.totalPages);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (err) {
+      console.error('加载历史消息失败:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentPage, hasMoreMessages, isLoadingMore]);
 
   // 初始化服务（只在组件首次挂载时执行）
   useEffect(() => {
     const init = async () => {
       try {
         await chatService.initialize();
-        // 首次加载时强制刷新，后续使用缓存
-        await loadMessages(true);
+        await loadLatestMessages();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : '未知错误';
         let userMessage = '初始化失败，请检查网络连接';
@@ -62,7 +90,7 @@ const Chat: React.FC = () => {
         refreshIntervalRef.current = null;
       }
     };
-  }, []); // 移除loadMessages依赖，只在组件挂载时执行一次
+  }, [loadLatestMessages]);
 
   // 检查加密功能可用性
   useEffect(() => {
@@ -80,17 +108,16 @@ const Chat: React.FC = () => {
     }
   }, []);
 
-  // 自动刷新逻辑
+  // 自动刷新逻辑（仅在查看最新消息时触发）
   useEffect(() => {
     if (refreshIntervalRef.current) {
       clearInterval(refreshIntervalRef.current);
       refreshIntervalRef.current = null;
     }
 
-    if (autoRefresh && !loading) {
+    if (autoRefresh && !loading && currentPage === 1) {
       refreshIntervalRef.current = setInterval(() => {
-        // 自动刷新时使用缓存（10秒内的请求使用缓存）
-        loadMessages(false);
+        loadLatestMessages();
       }, 10000);
     }
 
@@ -100,7 +127,7 @@ const Chat: React.FC = () => {
         refreshIntervalRef.current = null;
       }
     };
-  }, [autoRefresh, loadMessages, loading]);
+  }, [autoRefresh, currentPage, loadLatestMessages, loading]);
 
   // 发送消息
   const handleSendMessage = async (text: string, imageId?: number | null) => {
@@ -181,7 +208,7 @@ const Chat: React.FC = () => {
               />
               <span>自动刷新</span>
             </label>
-            <button className="refresh-button" onClick={() => loadMessages(true)} title="手动刷新消息（强制刷新）">
+            <button className="refresh-button" onClick={() => loadLatestMessages()} title="手动刷新消息（回到最新）">
               🔄
             </button>
           </div>
@@ -200,7 +227,13 @@ const Chat: React.FC = () => {
           </div>
         )}
 
-        <MessageList messages={messages} currentUser={currentUser || undefined} />
+        <MessageList
+          messages={messages}
+          currentUser={currentUser || undefined}
+          onLoadMore={loadOlderMessages}
+          hasMore={hasMoreMessages}
+          isLoadingMore={isLoadingMore}
+        />
 
         <MessageInput onSend={handleSendMessage} disabled={sending} />
       </div>

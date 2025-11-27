@@ -20,7 +20,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [detectedBase64, setDetectedBase64] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const MAX_LENGTH = 1000;
-  const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+  const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
   // 检测文本中是否包含 base64 图片数据
   const detectBase64Image = (text: string): { dataUrl: string; mimeType: string } | null => {
@@ -43,29 +43,32 @@ const MessageInput: React.FC<MessageInputProps> = ({
     setDetectedBase64(base64Image);
   }, [text]);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageFile = (file: File | null) => {
+    if (!file) return false;
 
-    // 验证文件类型
     if (!file.type.startsWith('image/')) {
       alert('请选择图片文件');
-      return;
+      return false;
     }
 
-    // 验证文件大小
     if (file.size > MAX_IMAGE_SIZE) {
       alert(`图片大小不能超过 ${MAX_IMAGE_SIZE / 1024 / 1024}MB`);
-      return;
+      return false;
     }
 
     setSelectedImage(file);
-    // 创建预览
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
     };
     reader.readAsDataURL(file);
+    return true;
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    handleImageFile(file);
   };
 
   const removeImage = () => {
@@ -169,6 +172,27 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
+  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (disabled || uploading) return;
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return;
+
+    const items = Array.from(clipboardData.items || []);
+    const imageItem = items.find((item) => item.type.startsWith('image/'));
+
+    if (imageItem) {
+      const file = imageItem.getAsFile();
+      if (file) {
+        event.preventDefault(); // 阻止默认插入行为
+        const textData = clipboardData.getData('text');
+        handleImageFile(file);
+        if (textData) {
+          setText((prev) => prev + textData);
+        }
+      }
+    }
+  };
+
   const remainingChars = MAX_LENGTH - text.length;
   const isNearLimit = remainingChars < 100;
 
@@ -194,6 +218,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyPress={handleKeyPress}
+          onPaste={handlePaste}
           placeholder={placeholder}
           disabled={disabled || uploading}
           rows={3}

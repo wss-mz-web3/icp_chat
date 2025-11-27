@@ -12,7 +12,7 @@ import './App.css';
  */
 const AppContent: React.FC = () => {
   const location = useLocation();
-  
+
   // 使用 useMemo 确保组件实例只创建一次
   const chatComponent = useMemo(() => <Chat key="chat" />, []);
   const newsListComponent = useMemo(() => <NewsList key="news-list" />, []);
@@ -39,7 +39,7 @@ const AppContent: React.FC = () => {
           }}
         >
           {chatComponent}
-        </div>
+          </div>
         
         {/* 新闻列表页面 - 使用 display: none 保持状态 */}
         <div
@@ -54,7 +54,7 @@ const AppContent: React.FC = () => {
         >
           {newsListComponent}
         </div>
-        
+
         {/* 新闻详情页直接渲染（不缓存，每次都重新渲染） */}
         {isNewsDetail && (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>

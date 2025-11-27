@@ -16,7 +16,7 @@ actor ICPChat {
   private let MAX_MESSAGE_LENGTH : Nat = 1000; // 单条消息最大长度
   private let MAX_MESSAGES : Nat = 10000;      // 最大消息数量
   private let DEFAULT_PAGE_SIZE : Nat = 50;    // 默认分页大小
-  private let MAX_IMAGE_SIZE : Nat = 2_000_000; // 单张图片最大大小（2MB）
+  private let MAX_IMAGE_SIZE : Nat = 10_000_000; // 单张图片最大大小（10MB）
   private let MAX_IMAGES : Nat = 1000;         // 最大图片数量
 
   public type Message = {

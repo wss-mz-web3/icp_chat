@@ -49,8 +49,16 @@ export default defineConfig(({ mode }) => {
     ...dfxEnv,
   }
 
+  const canisterId = env.CANISTER_ID_ICP_CHAT_BACKEND || env.CANISTER_ID_icp_chat_backend || '';
+  const network = env.DFX_NETWORK || 'local';
+
+  // 设置环境变量，Vite 会自动处理 VITE_ 前缀的变量
+  process.env.VITE_CANISTER_ID_ICP_CHAT_BACKEND = canisterId;
+  process.env.VITE_DFX_NETWORK = network;
+
   return {
     plugins: [react()],
+    envPrefix: 'VITE_',
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
@@ -67,13 +75,6 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      // 注入环境变量到代码中
-      'import.meta.env.CANISTER_ID_ICP_CHAT_BACKEND': JSON.stringify(
-        env.CANISTER_ID_ICP_CHAT_BACKEND || env.CANISTER_ID_icp_chat_backend || ''
-      ),
-      'import.meta.env.DFX_NETWORK': JSON.stringify(
-        env.DFX_NETWORK || 'local'
-      ),
       // 为浏览器环境提供 global polyfill
       'global': 'globalThis',
     },

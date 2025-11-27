@@ -25,10 +25,10 @@ export const config = {
   get canisterId(): string {
     // 尝试多种方式获取 canister ID
     // 1. Vite 环境变量（开发/构建时）- 由 vite.config.ts 注入
-    if (typeof import.meta !== 'undefined' && import.meta.env?.CANISTER_ID_ICP_CHAT_BACKEND) {
-      const id = import.meta.env.CANISTER_ID_ICP_CHAT_BACKEND;
+    if (typeof import.meta !== 'undefined') {
+      const env = import.meta.env as Record<string, string>;
+      const id = env.VITE_CANISTER_ID_ICP_CHAT_BACKEND;
       if (id) {
-        console.log('[Config] 从 import.meta.env 获取 Canister ID:', id);
         return id;
       }
     }
@@ -36,7 +36,6 @@ export const config = {
     if (typeof process !== 'undefined' && process.env?.CANISTER_ID_ICP_CHAT_BACKEND) {
       const id = process.env.CANISTER_ID_ICP_CHAT_BACKEND;
       if (id) {
-        console.log('[Config] 从 process.env 获取 Canister ID:', id);
         return id;
       }
     }
@@ -44,7 +43,6 @@ export const config = {
     if (typeof window !== 'undefined' && window.__ICP_ENV__?.CANISTER_ID_ICP_CHAT_BACKEND) {
       const id = window.__ICP_ENV__.CANISTER_ID_ICP_CHAT_BACKEND;
       if (id) {
-        console.log('[Config] 从 window.__ICP_ENV__ 获取 Canister ID:', id);
         return id;
       }
     }
@@ -52,7 +50,6 @@ export const config = {
     if (typeof window !== 'undefined' && window.__CANISTER_IDS__?.icp_chat_backend) {
       const id = window.__CANISTER_IDS__.icp_chat_backend;
       if (id) {
-        console.log('[Config] 从 window.__CANISTER_IDS__ 获取 Canister ID:', id);
         return id;
       }
     }
@@ -60,37 +57,30 @@ export const config = {
     if (typeof window !== 'undefined' && (window as any).CANISTER_ID_ICP_CHAT_BACKEND) {
       const id = (window as any).CANISTER_ID_ICP_CHAT_BACKEND;
       if (id) {
-        console.log('[Config] 从全局变量获取 Canister ID:', id);
         return id;
       }
     }
-    console.warn('[Config] 未找到 Canister ID，请确保已运行 dfx deploy');
     return '';
   },
   get network(): string {
     // 尝试多种方式获取网络类型
-    if (typeof import.meta !== 'undefined' && import.meta.env?.DFX_NETWORK) {
-      const network = import.meta.env.DFX_NETWORK;
-      console.log('[Config] 从 import.meta.env 获取网络:', network);
-      return network;
+    if (typeof import.meta !== 'undefined') {
+      const env = import.meta.env as Record<string, string>;
+      const network = env.VITE_DFX_NETWORK;
+      if (network) {
+        return network;
+      }
     }
     if (typeof process !== 'undefined' && process.env?.DFX_NETWORK) {
-      const network = process.env.DFX_NETWORK;
-      console.log('[Config] 从 process.env 获取网络:', network);
-      return network;
+      return process.env.DFX_NETWORK;
     }
     if (typeof window !== 'undefined' && window.__ICP_ENV__?.DFX_NETWORK) {
-      const network = window.__ICP_ENV__.DFX_NETWORK;
-      console.log('[Config] 从 window.__ICP_ENV__ 获取网络:', network);
-      return network;
+      return window.__ICP_ENV__.DFX_NETWORK;
     }
     if (typeof window !== 'undefined' && window.process?.env?.DFX_NETWORK) {
-      const network = window.process.env.DFX_NETWORK;
-      console.log('[Config] 从 window.process.env 获取网络:', network);
-      return network;
+      return window.process.env.DFX_NETWORK;
     }
     // 默认本地网络
-    console.log('[Config] 使用默认网络: local');
     return 'local';
   },
   get host(): string {

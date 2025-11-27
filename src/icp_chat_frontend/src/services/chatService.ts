@@ -1,5 +1,5 @@
 import { createActor, createAnonymousActor } from './icpAgent';
-import { _SERVICE } from '../../declarations/icp_chat_backend/icp_chat_backend.did.d.ts';
+import type { _SERVICE } from '../declarations/icp_chat_backend/icp_chat_backend.did.d.ts';
 
 export interface Message {
   id: number;
@@ -18,16 +18,13 @@ export interface MessagePage {
 
 class ChatService {
   private actor: _SERVICE | null = null;
-  private isAuthenticated: boolean = false;
 
   async initialize(useAuth: boolean = false) {
     try {
       if (useAuth) {
         this.actor = await createActor();
-        this.isAuthenticated = true;
       } else {
         this.actor = await createAnonymousActor();
-        this.isAuthenticated = false;
       }
       console.log('[ChatService] 初始化成功');
     } catch (error) {
@@ -75,7 +72,7 @@ class ChatService {
 
     try {
       const messages = await this.actor!.getLastMessages(BigInt(n));
-      return messages.map(msg => ({
+      return messages.map((msg: { id: bigint; author: string; text: string; timestamp: bigint }) => ({
         id: Number(msg.id),
         author: msg.author,
         text: msg.text,
@@ -94,7 +91,7 @@ class ChatService {
 
     try {
       const messages = await this.actor!.getAllMessages();
-      return messages.map(msg => ({
+      return messages.map((msg: { id: bigint; author: string; text: string; timestamp: bigint }) => ({
         id: Number(msg.id),
         author: msg.author,
         text: msg.text,
@@ -114,7 +111,7 @@ class ChatService {
     try {
       const result = await this.actor!.getMessagesPage(BigInt(page), BigInt(pageSize));
       return {
-        messages: result.messages.map(msg => ({
+        messages: result.messages.map((msg: { id: bigint; author: string; text: string; timestamp: bigint }) => ({
           id: Number(msg.id),
           author: msg.author,
           text: msg.text,

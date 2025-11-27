@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { chatService, Message } from './services/chatService';
 import MessageList from './components/MessageList';
 import MessageInput from './components/MessageInput';
+import { encryptionService } from './services/encryptionService';
 import './App.css';
 
 const App: React.FC = () => {
@@ -12,6 +13,7 @@ const App: React.FC = () => {
   const [messageCount, setMessageCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true); // 自动刷新开关
+  const [encryptionAvailable, setEncryptionAvailable] = useState<boolean>(true);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 加载消息
@@ -23,6 +25,16 @@ const App: React.FC = () => {
       setMessageCount(count);
     } catch (err) {
       console.error('加载消息失败:', err);
+    }
+  }, []);
+
+  // 检查加密功能可用性
+  useEffect(() => {
+    const available = encryptionService.isAvailable();
+    setEncryptionAvailable(available);
+    if (!available) {
+      const reason = encryptionService.getUnavailableReason();
+      console.warn('[App] 加密功能不可用:', reason);
     }
   }, []);
 
@@ -144,6 +156,9 @@ const App: React.FC = () => {
           <div className="header-left">
             <h1>💬 ICP Chat</h1>
             <span className="message-count">共 {messageCount} 条消息</span>
+            <span className="encryption-badge" title="消息采用端到端加密，只有您能解密">
+              🔒 端到端加密
+            </span>
           </div>
           <div className="header-right">
             <label className="auto-refresh-toggle" title="自动刷新">
@@ -163,6 +178,12 @@ const App: React.FC = () => {
             </button> */}
           </div>
         </div>
+
+        {!encryptionAvailable && (
+          <div className="warning-message">
+            <span>⚠️ {encryptionService.getUnavailableReason() || '加密功能不可用'}</span>
+          </div>
+        )}
 
         {error && (
           <div className="error-message">

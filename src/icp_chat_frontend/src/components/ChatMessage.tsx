@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './ChatMessage.css';
 import { chatService } from '../services/chatService';
+import { encryptionService } from '../services/encryptionService';
 
 export interface ChatMessageProps {
   id: number;
@@ -44,6 +45,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ author, text, timestamp, imag
   const [imageError, setImageError] = useState<string | null>(null);
   const [base64Images, setBase64Images] = useState<string[]>([]);
   const [displayText, setDisplayText] = useState<string>('');
+  const [decryptError, setDecryptError] = useState<boolean>(false);
 
   const loadImage = useCallback(async () => {
     if (imageId === undefined || imageId === null) {
@@ -74,13 +76,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ author, text, timestamp, imag
     }
   }, [imageId]);
 
-  // 检测文本中的 base64 图片数据
+  // 检测文本中的 base64 图片数据和加密状态
   useEffect(() => {
     if (!text) {
       setDisplayText('');
       setBase64Images([]);
+      setDecryptError(false);
       return;
     }
+
+    // 检查是否是加密消息但解密失败（仍保留 encrypted: 前缀）
+    const isEncryptedButFailed = encryptionService.isEncrypted(text);
+    setDecryptError(isEncryptedButFailed);
 
     // 匹配 data:image/xxx;base64,xxxxx 格式
     const base64ImageRegex = /data:image\/[^;]+;base64,[^"'\s]+/g;
@@ -165,7 +172,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ author, text, timestamp, imag
           </span>
         </div>
         <div className="message-content">
-          {displayText && <div className="message-text">{displayText}</div>}
+          {displayText && (
+            <div className="message-text">
+              {decryptError ? (
+                <span className="decrypt-error" title="无法解密此消息，可能是密钥不匹配或旧消息">
+                  🔒 无法解密此消息
+                </span>
+              ) : (
+                displayText
+              )}
+            </div>
+          )}
           
           {/* 显示通过 imageId 上传的图片 */}
           {imageId !== undefined && imageId !== null && (

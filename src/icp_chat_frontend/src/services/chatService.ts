@@ -1,5 +1,6 @@
 import { createActor, createAnonymousActor } from './icpAgent';
 import type { _SERVICE } from '../declarations/icp_chat_backend/icp_chat_backend.did.d.ts';
+import { encryptionService } from './encryptionService';
 
 export interface Message {
   id: number;
@@ -112,21 +113,47 @@ class ChatService {
     }
 
     try {
+      // 加密消息文本（如果有文本内容）
+      let encryptedText = text;
+      if (text && text.trim().length > 0) {
+        try {
+          encryptedText = await encryptionService.encrypt(text);
+          console.log('[ChatService] 消息已加密');
+        } catch (error) {
+          console.error('[ChatService] 加密失败:', error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : '消息加密失败',
+          };
+        }
+      }
+
       // ICP 中 Opt<T> 类型在 JavaScript 中表示为数组：[] 表示 null，[value] 表示 some(value)
       const imageIdOpt: [] | [bigint] = imageId !== undefined && imageId !== null ? [BigInt(imageId)] : [];
-      console.log(`[ChatService] 发送消息，text: "${text}", imageId: ${imageId}, imageIdOpt:`, imageIdOpt);
-      const result = await this.actor!.sendMessage(text, imageIdOpt);
+      const textPreview = text.length > 50 ? `${text.substring(0, 50)}...` : text;
+      console.log(`[ChatService] 发送消息，text: "${textPreview}", imageId: ${imageId}, imageIdOpt:`, imageIdOpt);
+      const result = await this.actor!.sendMessage(encryptedText, imageIdOpt);
       if ('ok' in result) {
         const msg = result.ok;
         // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
         const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
+        
+        // 解密返回的消息文本（用于显示）
+        let decryptedText = msg.text;
+        try {
+          decryptedText = await encryptionService.decrypt(msg.text);
+        } catch (error) {
+          console.warn('[ChatService] 解密返回消息失败，使用加密文本:', error);
+          // 如果解密失败，可能是旧消息或密钥不匹配，保留加密文本
+        }
+        
         console.log(`[ChatService] 消息发送成功，消息 ID: ${Number(msg.id)}, imageId: ${imageIdValue}, 原始 imageId:`, msg.imageId);
         return {
           success: true,
           message: {
             id: Number(msg.id),
             author: msg.author,
-            text: msg.text,
+            text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,
           },
@@ -153,17 +180,32 @@ class ChatService {
 
     try {
       const messages = await this.actor!.getLastMessages(BigInt(n));
-      return messages.map((msg) => {
-        // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
-        const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
-        return {
-          id: Number(msg.id),
-          author: msg.author,
-          text: msg.text,
-          timestamp: msg.timestamp,
-          imageId: imageIdValue,
-        };
-      });
+      // 并行解密所有消息
+      const decryptedMessages = await Promise.all(
+        messages.map(async (msg) => {
+          // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
+          const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
+          
+          // 尝试解密消息文本
+          let decryptedText = msg.text;
+          try {
+            decryptedText = await encryptionService.decrypt(msg.text);
+          } catch (error) {
+            // 如果解密失败，可能是旧消息或密钥不匹配
+            // 保留原始文本（可能是加密的或未加密的）
+            console.warn(`[ChatService] 消息 ${Number(msg.id)} 解密失败:`, error);
+          }
+          
+          return {
+            id: Number(msg.id),
+            author: msg.author,
+            text: decryptedText,
+            timestamp: msg.timestamp,
+            imageId: imageIdValue,
+          };
+        })
+      );
+      return decryptedMessages;
     } catch (error) {
       console.error('获取消息失败:', error);
       return [];
@@ -177,17 +219,31 @@ class ChatService {
 
     try {
       const messages = await this.actor!.getAllMessages();
-      return messages.map((msg) => {
-        // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
-        const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
-        return {
-          id: Number(msg.id),
-          author: msg.author,
-          text: msg.text,
-          timestamp: msg.timestamp,
-          imageId: imageIdValue,
-        };
-      });
+      // 并行解密所有消息
+      const decryptedMessages = await Promise.all(
+        messages.map(async (msg) => {
+          // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
+          const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
+          
+          // 尝试解密消息文本
+          let decryptedText = msg.text;
+          try {
+            decryptedText = await encryptionService.decrypt(msg.text);
+          } catch (error) {
+            // 如果解密失败，可能是旧消息或密钥不匹配
+            console.warn(`[ChatService] 消息 ${Number(msg.id)} 解密失败:`, error);
+          }
+          
+          return {
+            id: Number(msg.id),
+            author: msg.author,
+            text: decryptedText,
+            timestamp: msg.timestamp,
+            imageId: imageIdValue,
+          };
+        })
+      );
+      return decryptedMessages;
     } catch (error) {
       console.error('获取所有消息失败:', error);
       return [];
@@ -201,18 +257,33 @@ class ChatService {
 
     try {
       const result = await this.actor!.getMessagesPage(BigInt(page), BigInt(pageSize));
-      return {
-        messages: result.messages.map((msg) => {
+      // 并行解密所有消息
+      const decryptedMessages = await Promise.all(
+        result.messages.map(async (msg) => {
           // imageId 是 Opt<Nat>，在 JavaScript 中表示为 [] 或 [bigint]
           const imageIdValue = Array.isArray(msg.imageId) && msg.imageId.length > 0 ? Number(msg.imageId[0]) : null;
+          
+          // 尝试解密消息文本
+          let decryptedText = msg.text;
+          try {
+            decryptedText = await encryptionService.decrypt(msg.text);
+          } catch (error) {
+            // 如果解密失败，可能是旧消息或密钥不匹配
+            console.warn(`[ChatService] 消息 ${Number(msg.id)} 解密失败:`, error);
+          }
+          
           return {
             id: Number(msg.id),
             author: msg.author,
-            text: msg.text,
+            text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,
           };
-        }),
+        })
+      );
+      
+      return {
+        messages: decryptedMessages,
         total: Number(result.total),
         page: Number(result.page),
         pageSize: Number(result.pageSize),

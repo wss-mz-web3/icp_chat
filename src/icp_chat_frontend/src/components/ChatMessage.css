@@ -85,6 +85,25 @@
   margin-bottom: 8px;
 }
 
+.decrypt-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 6px;
+  color: #856404;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.chat-message.own .decrypt-error {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .message-image {
   margin-top: 8px;
   border-radius: 8px;

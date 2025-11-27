@@ -14,17 +14,56 @@
       // 从 DFX 生成的环境变量中加载配置
       // 这些变量会在部署时由 DFX 注入
       (function() {
+        // 运行时检测网络类型（通过 hostname）
+        let detectedNetwork = 'local';
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname;
+          const protocol = window.location.protocol;
+          
+          // 优先级 1: 通过 hostname 检测主网域名
+          if (hostname.includes('.ic0.app') || hostname.includes('.icp0.io')) {
+            detectedNetwork = 'ic';
+          } 
+          // 优先级 2: 如果使用 https 且不是 localhost，可能是主网
+          else if (protocol === 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+            // 检查是否有 canister ID 参数（主网部署通常会有）
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('canisterId')) {
+              detectedNetwork = 'ic';
+            }
+          }
+          // 优先级 3: localhost 默认是本地，但检查环境变量
+          else if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
+            // 如果构建时环境变量是 'ic'，说明是主网部署（通过 DFX 代理访问）
+            // 这里先设为 local，让 config.ts 中的逻辑进一步判断
+            detectedNetwork = 'local';
+          }
+        }
+        
         const env = {
-          DFX_NETWORK: 'local',
+          DFX_NETWORK: detectedNetwork,
           CANISTER_ID_ICP_CHAT_BACKEND: ''
         };
         
-        // 尝试从 Vite 注入的环境变量获取
+        // 尝试从 URL 参数获取 canister ID（DFX 部署时会在 URL 中包含）
+        if (typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlCanisterId = urlParams.get('canisterId');
+          if (urlCanisterId) {
+            env.CANISTER_ID_ICP_CHAT_BACKEND = urlCanisterId;
+          }
+        }
+        
+        // 尝试从 Vite 注入的环境变量获取（构建时注入，优先级较高）
         if (typeof import !== 'undefined' && import.meta?.env) {
-          if (import.meta.env.DFX_NETWORK) {
+          // 如果构建时是主网，优先使用构建时的配置
+          if (import.meta.env.DFX_NETWORK === 'ic') {
+            env.DFX_NETWORK = 'ic';
+          } else if (import.meta.env.DFX_NETWORK && !env.DFX_NETWORK) {
             env.DFX_NETWORK = import.meta.env.DFX_NETWORK;
           }
-          if (import.meta.env.CANISTER_ID_ICP_CHAT_BACKEND) {
+          
+          if (import.meta.env.CANISTER_ID_ICP_CHAT_BACKEND && !env.CANISTER_ID_ICP_CHAT_BACKEND) {
             env.CANISTER_ID_ICP_CHAT_BACKEND = import.meta.env.CANISTER_ID_ICP_CHAT_BACKEND;
           }
         }
@@ -32,10 +71,29 @@
         // 尝试从全局变量获取（DFX 可能注入）
         if (typeof window !== 'undefined') {
           if (window.process?.env) {
-            Object.assign(env, window.process.env);
+            // 如果构建时是主网，优先使用
+            if (window.process.env.DFX_NETWORK === 'ic') {
+              env.DFX_NETWORK = 'ic';
+            } else if (window.process.env.DFX_NETWORK && env.DFX_NETWORK === 'local') {
+              env.DFX_NETWORK = window.process.env.DFX_NETWORK;
+            }
+            
+            if (window.process.env.CANISTER_ID_ICP_CHAT_BACKEND && !env.CANISTER_ID_ICP_CHAT_BACKEND) {
+              env.CANISTER_ID_ICP_CHAT_BACKEND = window.process.env.CANISTER_ID_ICP_CHAT_BACKEND;
+            }
           }
           // 存储到 window 对象供应用使用
           window.__ICP_ENV__ = env;
+          
+          // 调试日志
+          console.log('[HTML Init] 环境配置:', {
+            network: env.DFX_NETWORK,
+            canisterId: env.CANISTER_ID_ICP_CHAT_BACKEND || '(未设置)',
+            hostname: window.location.hostname,
+            protocol: window.location.protocol,
+            port: window.location.port,
+            url: window.location.href
+          });
         }
       })();
     </script>

@@ -34,6 +34,7 @@ class EncryptionService {
   private key: CryptoKey | null = null;
   private keyPromise: Promise<CryptoKey> | null = null;
   private cryptoAvailable: boolean | null = null;
+  private groupKeys: Map<string, CryptoKey> = new Map(); // 群组密钥缓存
 
   /**
    * 检查 Web Crypto API 是否可用
@@ -178,6 +179,76 @@ class EncryptionService {
     localStorage.removeItem(STORAGE_KEY);
     await this.getKey();
     console.log('[EncryptionService] 密钥已重置');
+  }
+
+  /**
+   * 导出密钥（用于备份）
+   * 返回 Base64 编码的密钥字符串
+   */
+  async exportKeyString(): Promise<string> {
+    try {
+      const key = await this.getKey();
+      const keyData = await this.exportKey(key);
+      const keyBase64 = this.arrayBufferToBase64(keyData);
+      console.log('[EncryptionService] 密钥导出成功');
+      return keyBase64;
+    } catch (error) {
+      console.error('[EncryptionService] 密钥导出失败:', error);
+      throw new Error('密钥导出失败');
+    }
+  }
+
+  /**
+   * 导入密钥（从备份恢复）
+   * @param keyBase64 Base64 编码的密钥字符串
+   */
+  async importKeyString(keyBase64: string): Promise<void> {
+    try {
+      // 验证 Base64 格式
+      if (!keyBase64 || keyBase64.trim().length === 0) {
+        throw new Error('密钥格式无效');
+      }
+
+      // 将 Base64 转换为 ArrayBuffer
+      const keyData = this.base64ToArrayBuffer(keyBase64.trim());
+      
+      // 导入密钥
+      const importedKey = await this.importKey(keyData);
+      
+      // 验证密钥是否可用
+      // 尝试使用密钥加密一个测试字符串
+      const testText = 'test';
+      const encoder = new TextEncoder();
+      const testData = encoder.encode(testText);
+      const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+      
+      try {
+        await crypto.subtle.encrypt(
+          {
+            name: KEY_ALGORITHM,
+            iv: iv,
+            tagLength: TAG_LENGTH,
+          },
+          importedKey,
+          testData
+        );
+      } catch (testError) {
+        throw new Error('密钥验证失败，密钥可能已损坏');
+      }
+
+      // 保存密钥
+      this.key = importedKey;
+      this.keyPromise = null;
+      const keyDataForStorage = await this.exportKey(importedKey);
+      const keyBase64ForStorage = this.arrayBufferToBase64(keyDataForStorage);
+      localStorage.setItem(STORAGE_KEY, keyBase64ForStorage);
+      
+      console.log('[EncryptionService] 密钥导入成功');
+    } catch (error) {
+      console.error('[EncryptionService] 密钥导入失败:', error);
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      throw new Error(`密钥导入失败: ${errorMessage}`);
+    }
   }
 
   /**
@@ -335,8 +406,21 @@ class EncryptionService {
           encrypted
         );
       } catch (decryptError) {
-        // 解密操作失败（可能是密钥不匹配、数据损坏等）
-        console.error('[EncryptionService] 解密操作失败:', decryptError);
+        // 解密操作失败的可能原因：
+        // 1. 密钥不匹配：消息是由其他设备/浏览器加密的（每个设备有独立的密钥）
+        // 2. 数据损坏：传输或存储过程中数据被修改
+        // 3. 格式错误：加密数据格式不正确
+        const errorName = decryptError instanceof Error ? decryptError.name : 'Unknown';
+        const errorMessage = decryptError instanceof Error ? decryptError.message : String(decryptError);
+        console.error('[EncryptionService] 解密操作失败:', {
+          error: errorName,
+          message: errorMessage,
+          possibleReasons: [
+            '密钥不匹配（消息可能由其他设备加密）',
+            '数据损坏',
+            '加密格式错误'
+          ]
+        });
         // 返回原始加密文本，让调用者决定如何处理
         return encryptedText;
       }
@@ -428,6 +512,152 @@ class EncryptionService {
       bytes[i] = binary.charCodeAt(i);
     }
     return bytes.buffer;
+  }
+
+  /**
+   * 使用群组密钥加密文本
+   * @param text 要加密的文本
+   * @param groupId 群组ID
+   */
+  async encryptWithGroupKey(text: string, groupId: string): Promise<string> {
+    try {
+      if (!shouldEnableEncryption()) {
+        return text;
+      }
+
+      if (!this.checkCryptoAvailable() || !crypto.subtle) {
+        throw new Error('Web Crypto API 不可用');
+      }
+
+      // 获取或生成群组密钥
+      let groupKey = this.groupKeys.get(groupId);
+      if (!groupKey) {
+        // 如果没有群组密钥，生成一个新的
+        groupKey = await this.generateKey();
+        this.groupKeys.set(groupId, groupKey);
+      }
+
+      // 生成随机初始化向量
+      const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+      
+      // 将文本转换为 ArrayBuffer
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      
+      // 加密
+      const encrypted = await crypto.subtle.encrypt(
+        {
+          name: KEY_ALGORITHM,
+          iv: iv,
+          tagLength: TAG_LENGTH,
+        },
+        groupKey,
+        data
+      );
+
+      // 将 IV 和加密数据组合
+      const combined = new Uint8Array(iv.length + encrypted.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(encrypted), iv.length);
+
+      // 转换为 Base64
+      const base64 = this.arrayBufferToBase64(combined.buffer);
+      
+      // 添加群组标识前缀
+      return `group:${groupId}:encrypted:${base64}`;
+    } catch (error) {
+      console.error('[EncryptionService] 群组加密失败:', error);
+      throw new Error('群组消息加密失败');
+    }
+  }
+
+  /**
+   * 使用群组密钥解密文本
+   * @param encryptedText 加密的文本
+   * @param groupId 群组ID
+   */
+  async decryptWithGroupKey(encryptedText: string, groupId: string): Promise<string> {
+    try {
+      // 检查是否是群组加密消息
+      const prefix = `group:${groupId}:encrypted:`;
+      if (!encryptedText.startsWith(prefix)) {
+        // 不是群组加密消息，尝试普通解密
+        return await this.decrypt(encryptedText);
+      }
+
+      if (!shouldEnableEncryption()) {
+        return encryptedText;
+      }
+
+      if (!this.checkCryptoAvailable() || !crypto.subtle) {
+        throw new Error('Web Crypto API 不可用');
+      }
+
+      // 获取群组密钥
+      const groupKey = this.groupKeys.get(groupId);
+      if (!groupKey) {
+        throw new Error(`群组 ${groupId} 的密钥不存在`);
+      }
+
+      // 移除前缀
+      const base64 = encryptedText.substring(prefix.length);
+      
+      // 将 Base64 转换为 ArrayBuffer
+      const combined = this.base64ToArrayBuffer(base64);
+      const combinedArray = new Uint8Array(combined);
+      
+      // 提取 IV 和加密数据
+      const iv = combinedArray.slice(0, IV_LENGTH);
+      const encrypted = combinedArray.slice(IV_LENGTH);
+      
+      // 解密
+      const decrypted = await crypto.subtle.decrypt(
+        {
+          name: KEY_ALGORITHM,
+          iv: iv,
+          tagLength: TAG_LENGTH,
+        },
+        groupKey,
+        encrypted
+      );
+
+      // 转换为文本
+      const decoder = new TextDecoder();
+      return decoder.decode(decrypted);
+    } catch (error) {
+      console.error('[EncryptionService] 群组解密失败:', error);
+      return encryptedText; // 返回原始文本
+    }
+  }
+
+  /**
+   * 设置群组密钥（从服务器同步）
+   * @param groupId 群组ID
+   * @param keyBase64 Base64 编码的密钥
+   */
+  async setGroupKey(groupId: string, keyBase64: string): Promise<void> {
+    try {
+      const keyData = this.base64ToArrayBuffer(keyBase64);
+      const groupKey = await this.importKey(keyData);
+      this.groupKeys.set(groupId, groupKey);
+      console.log(`[EncryptionService] 群组 ${groupId} 密钥已设置`);
+    } catch (error) {
+      console.error('[EncryptionService] 设置群组密钥失败:', error);
+      throw new Error('设置群组密钥失败');
+    }
+  }
+
+  /**
+   * 导出群组密钥
+   * @param groupId 群组ID
+   */
+  async exportGroupKey(groupId: string): Promise<string> {
+    const groupKey = this.groupKeys.get(groupId);
+    if (!groupKey) {
+      throw new Error(`群组 ${groupId} 的密钥不存在`);
+    }
+    const keyData = await this.exportKey(groupKey);
+    return this.arrayBufferToBase64(keyData);
   }
 }
 

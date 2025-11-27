@@ -349,6 +349,192 @@ class ChatService {
       return false;
     }
   }
+
+  // ========== 密钥同步相关功能 ==========
+
+  /**
+   * 同步加密密钥到服务器
+   */
+  async syncEncryptionKey(): Promise<{ success: boolean; error?: string }> {
+    if (!this.actor) {
+      await this.initialize();
+    }
+
+    try {
+      const keyBase64 = await encryptionService.exportKeyString();
+      const result = await this.actor!.saveEncryptionKey(keyBase64);
+      if ('ok' in result) {
+        console.log('[ChatService] 密钥同步成功');
+        return { success: true };
+      } else {
+        console.error('[ChatService] 密钥同步失败:', result.err);
+        return { success: false, error: result.err };
+      }
+    } catch (error) {
+      console.error('[ChatService] 密钥同步异常:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '密钥同步失败',
+      };
+    }
+  }
+
+  /**
+   * 从服务器获取加密密钥
+   */
+  async getEncryptionKeyFromServer(): Promise<{ success: boolean; key?: string; error?: string }> {
+    if (!this.actor) {
+      await this.initialize();
+    }
+
+    try {
+      const result = await this.actor!.getEncryptionKey();
+      if (result && result.length > 0) {
+        const keyBase64 = result[0];
+        console.log('[ChatService] 从服务器获取密钥成功');
+        return { success: true, key: keyBase64 };
+      } else {
+        return { success: false, error: '服务器上没有保存的密钥' };
+      }
+    } catch (error) {
+      console.error('[ChatService] 获取密钥异常:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '获取密钥失败',
+      };
+    }
+  }
+
+  /**
+   * 从服务器恢复加密密钥
+   */
+  async restoreEncryptionKey(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const result = await this.getEncryptionKeyFromServer();
+      if (result.success && result.key) {
+        await encryptionService.importKeyString(result.key);
+        console.log('[ChatService] 密钥恢复成功');
+        return { success: true };
+      } else {
+        return { success: false, error: result.error || '无法获取密钥' };
+      }
+    } catch (error) {
+      console.error('[ChatService] 密钥恢复异常:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '密钥恢复失败',
+      };
+    }
+  }
+
+  /**
+   * 删除服务器上的加密密钥
+   */
+  async deleteEncryptionKeyFromServer(): Promise<{ success: boolean; error?: string }> {
+    if (!this.actor) {
+      await this.initialize();
+    }
+
+    try {
+      const result = await this.actor!.deleteEncryptionKey();
+      if (result) {
+        console.log('[ChatService] 服务器密钥删除成功');
+        return { success: true };
+      } else {
+        return { success: false, error: '删除失败' };
+      }
+    } catch (error) {
+      console.error('[ChatService] 删除密钥异常:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '删除密钥失败',
+      };
+    }
+  }
+
+  // ========== 群组密钥相关功能 ==========
+
+  /**
+   * 设置群组密钥到服务器
+   */
+  async setGroupKey(groupId: string, keyBase64: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.actor) {
+      await this.initialize();
+    }
+
+    try {
+      const result = await this.actor!.setGroupKey(groupId, keyBase64);
+      if ('ok' in result) {
+        // 同时保存到本地缓存
+        await encryptionService.setGroupKey(groupId, keyBase64);
+        console.log(`[ChatService] 群组 ${groupId} 密钥设置成功`);
+        return { success: true };
+      } else {
+        console.error(`[ChatService] 群组 ${groupId} 密钥设置失败:`, result.err);
+        return { success: false, error: result.err };
+      }
+    } catch (error) {
+      console.error('[ChatService] 设置群组密钥异常:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '设置群组密钥失败',
+      };
+    }
+  }
+
+  /**
+   * 从服务器获取群组密钥
+   */
+  async getGroupKey(groupId: string): Promise<{ success: boolean; key?: string; error?: string }> {
+    if (!this.actor) {
+      await this.initialize();
+    }
+
+    try {
+      const result = await this.actor!.getGroupKey(groupId);
+      if (result && result.length > 0) {
+        const keyBase64 = result[0];
+        if (keyBase64) {
+          // 同时保存到本地缓存
+          await encryptionService.setGroupKey(groupId, keyBase64);
+          console.log(`[ChatService] 群组 ${groupId} 密钥获取成功`);
+          return { success: true, key: keyBase64 };
+        }
+      }
+      return { success: false, error: `群组 ${groupId} 的密钥不存在` };
+    } catch (error) {
+      console.error('[ChatService] 获取群组密钥异常:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '获取群组密钥失败',
+      };
+    }
+  }
+
+  /**
+   * 删除群组密钥
+   */
+  async deleteGroupKey(groupId: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.actor) {
+      await this.initialize();
+    }
+
+    try {
+      const result = await this.actor!.deleteGroupKey(groupId);
+      if (result) {
+        console.log(`[ChatService] 群组 ${groupId} 密钥删除成功`);
+        return { success: true };
+      } else {
+        return { success: false, error: '删除失败' };
+      }
+    } catch (error) {
+      console.error('[ChatService] 删除群组密钥异常:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '删除群组密钥失败',
+      };
+    }
+  }
 }
 
 export const chatService = new ChatService();

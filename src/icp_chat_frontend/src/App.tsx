@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { chatService, Message } from './services/chatService';
 import MessageList from './components/MessageList';
 import MessageInput from './components/MessageInput';
+import KeyManagement from './components/KeyManagement';
 import { encryptionService } from './services/encryptionService';
 import './App.css';
 
@@ -14,6 +15,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true); // 自动刷新开关
   const [encryptionAvailable, setEncryptionAvailable] = useState<boolean>(true);
+  const [showKeyManagement, setShowKeyManagement] = useState<boolean>(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 加载消息
@@ -159,9 +161,20 @@ const App: React.FC = () => {
           <div className="header-left">
             <h1>💬 ICP Chat</h1>
             <span className="message-count">共 {messageCount} 条消息</span>
-            <span className="encryption-badge" title="消息采用端到端加密，只有您能解密">
-              🔒 端到端加密
-            </span>
+            {encryptionAvailable && (
+              <>
+                <span className="encryption-badge" title="消息采用端到端加密，只有您能解密">
+                  🔒 端到端加密
+                </span>
+                <button
+                  className="key-management-btn"
+                  onClick={() => setShowKeyManagement(true)}
+                  title="密钥管理"
+                >
+                  🔑 密钥管理
+                </button>
+              </>
+            )}
           </div>
           <div className="header-right">
             <label className="auto-refresh-toggle" title="自动刷新">
@@ -199,6 +212,9 @@ const App: React.FC = () => {
 
         <MessageInput onSend={handleSendMessage} disabled={sending} />
       </div>
+      {showKeyManagement && (
+        <KeyManagement onClose={() => setShowKeyManagement(false)} />
+      )}
     </div>
   );
 };

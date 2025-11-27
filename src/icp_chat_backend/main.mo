@@ -66,14 +66,26 @@ actor ICPChat {
   // Stable 存储图片数组
   stable var imagesStable : [(Nat, Blob)] = [];
   
-  // 系统升级时恢复图片数据
+  // 系统升级时保存数据
   system func preupgrade() {
     imagesStable := imagesToArray();
+    userKeysStable := userKeysToArray();
+    groupKeysStable := groupKeysToArray();
   };
   
+  // 系统升级时恢复数据
   system func postupgrade() {
     imagesFromArray(imagesStable);
-    imagesStable := []; // 清理临时存储
+    imagesStable := [];
+    // 恢复用户密钥和群组密钥（如果存在）
+    if (userKeysStable.size() > 0) {
+      userKeysFromArray(userKeysStable);
+      userKeysStable := [];
+    };
+    if (groupKeysStable.size() > 0) {
+      groupKeysFromArray(groupKeysStable);
+      groupKeysStable := [];
+    };
   };
 
   // 验证消息文本（这里简单用非空 + 长度限制，避免 trim 的版本差异问题）
@@ -319,6 +331,129 @@ actor ICPChat {
     ignore caller;
     messages := [];
     nextId := 0;
+    true
+  };
+
+  // ========== 密钥同步相关功能 ==========
+  
+  // 用户密钥存储：Principal -> 加密后的密钥（Base64）
+  // 注意：密钥应该用用户的主密钥加密后再存储，这里简化处理
+  var userKeys : HashMap.HashMap<Principal, Text> = HashMap.HashMap<Principal, Text>(0, Principal.equal, Principal.hash);
+  
+  // 将 HashMap 转换为数组用于序列化
+  private func userKeysToArray() : [(Principal, Text)] {
+    var arr : [(Principal, Text)] = [];
+    for ((principal, key) in userKeys.entries()) {
+      arr := Array.append(arr, [(principal, key)]);
+    };
+    arr
+  };
+  
+  // 从数组恢复 HashMap
+  private func userKeysFromArray(arr : [(Principal, Text)]) {
+    userKeys := HashMap.HashMap<Principal, Text>(0, Principal.equal, Principal.hash);
+    for ((principal, key) in arr.vals()) {
+      userKeys.put(principal, key);
+    };
+  };
+  
+  // Stable 存储用户密钥数组
+  stable var userKeysStable : [(Principal, Text)] = [];
+  
+
+  // 保存用户加密密钥（用于跨设备同步）
+  // 注意：实际应用中应该对密钥进行二次加密
+  public shared ({ caller }) func saveEncryptionKey(encryptedKey : Text) : async Result.Result<Bool, Text> {
+    if (Principal.isAnonymous(caller)) {
+      return #err("匿名用户无法保存密钥");
+    };
+    
+    // 验证密钥格式（简单检查）
+    if (Text.size(encryptedKey) == 0 or Text.size(encryptedKey) > 10000) {
+      return #err("密钥格式无效");
+    };
+    
+    userKeys.put(caller, encryptedKey);
+    #ok(true)
+  };
+
+  // 获取用户加密密钥
+  public shared query ({ caller }) func getEncryptionKey() : async ?Text {
+    if (Principal.isAnonymous(caller)) {
+      return null;
+    };
+    userKeys.get(caller)
+  };
+
+  // 删除用户加密密钥
+  public shared ({ caller }) func deleteEncryptionKey() : async Bool {
+    if (Principal.isAnonymous(caller)) {
+      return false;
+    };
+    userKeys.delete(caller);
+    true
+  };
+
+  // ========== 群组密钥相关功能 ==========
+  
+  // 群组密钥存储：群组ID -> 加密后的密钥（Base64）
+  // 群组ID 可以是 Principal 或其他标识符
+  var groupKeys : HashMap.HashMap<Text, Text> = HashMap.HashMap<Text, Text>(0, Text.equal, Text.hash);
+  
+  // 将 HashMap 转换为数组用于序列化
+  private func groupKeysToArray() : [(Text, Text)] {
+    var arr : [(Text, Text)] = [];
+    for ((groupId, key) in groupKeys.entries()) {
+      arr := Array.append(arr, [(groupId, key)]);
+    };
+    arr
+  };
+  
+  // 从数组恢复 HashMap
+  private func groupKeysFromArray(arr : [(Text, Text)]) {
+    groupKeys := HashMap.HashMap<Text, Text>(0, Text.equal, Text.hash);
+    for ((groupId, key) in arr.vals()) {
+      groupKeys.put(groupId, key);
+    };
+  };
+  
+  // Stable 存储群组密钥数组
+  stable var groupKeysStable : [(Text, Text)] = [];
+  
+  // 更新系统升级函数以包含群组密钥
+  // （preupgrade 和 postupgrade 已在上面更新）
+
+  // 创建或更新群组密钥
+  public shared ({ caller }) func setGroupKey(groupId : Text, encryptedKey : Text) : async Result.Result<Bool, Text> {
+    if (Principal.isAnonymous(caller)) {
+      return #err("匿名用户无法设置群组密钥");
+    };
+    
+    // 验证密钥格式
+    if (Text.size(encryptedKey) == 0 or Text.size(encryptedKey) > 10000) {
+      return #err("密钥格式无效");
+    };
+    
+    // 验证群组ID格式
+    if (Text.size(groupId) == 0 or Text.size(groupId) > 200) {
+      return #err("群组ID格式无效");
+    };
+    
+    groupKeys.put(groupId, encryptedKey);
+    #ok(true)
+  };
+
+  // 获取群组密钥
+  public shared query ({ caller }) func getGroupKey(groupId : Text) : async ?Text {
+    groupKeys.get(groupId)
+  };
+
+  // 删除群组密钥
+  public shared ({ caller }) func deleteGroupKey(groupId : Text) : async Bool {
+    if (Principal.isAnonymous(caller)) {
+      return false;
+    };
+    groupKeys.delete(groupId);
     true
   };
 

@@ -139,9 +139,13 @@ const MessageList: React.FC<MessageListProps> = ({
         // 对于当前用户的消息：使用最新的 Profile 信息覆盖消息中的快照
         // 这样修改个人信息后，历史消息也会显示更新后的信息
         // 对于其他用户的消息：使用消息中的快照，保证所有浏览器看到一致的效果
+        // 确保只有当头像是一个有效的非空字符串时才使用，否则为 undefined（会显示文字头像）
+        const getValidAvatar = (avatar: string | null | undefined): string | undefined => {
+          return avatar && avatar.trim() ? avatar.trim() : undefined;
+        };
         const displayAvatar = isOwnMessage 
-          ? (ownAvatar ?? message.authorAvatar ?? undefined)
-          : (message.authorAvatar ?? undefined);
+          ? (getValidAvatar(ownAvatar) ?? getValidAvatar(message.authorAvatar))
+          : getValidAvatar(message.authorAvatar);
         const displayColor = isOwnMessage
           ? (ownColor ?? message.authorColor ?? undefined)
           : (message.authorColor ?? undefined);

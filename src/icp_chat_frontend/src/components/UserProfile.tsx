@@ -170,12 +170,36 @@ const UserProfile: React.FC = () => {
 
             <label className="key-management-label">
               <span className="field-label">头像</span>
-              <input
-                className="key-management-input"
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-              />
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <input
+                  className="key-management-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  style={{ flex: 1 }}
+                />
+                {profile.avatar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfile((prev) => ({
+                        ...prev,
+                        avatar: '',
+                      }));
+                      setError(null);
+                    }}
+                    className="key-management-button"
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title="删除当前头像"
+                  >
+                    删除头像
+                  </button>
+                )}
+              </div>
               <span className="field-desc">
                 本地上传头像图，支持常见图片格式，预览区域会按圆形裁剪展示。
               </span>

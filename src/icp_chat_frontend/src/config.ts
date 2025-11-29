@@ -201,6 +201,14 @@ export const config = {
       }
     }
     
+    // 7. 如果是在主网且所有方式都获取不到，使用硬编码的主网后端 canister ID
+    const network = this.network;
+    if (network === 'ic') {
+      const mainnetBackendCanisterId = 'pxbfw-3iaaa-aaaam-qesya-cai';
+      console.warn('[Config] 未找到 canister ID，但在主网，使用硬编码的主网后端 canister ID:', mainnetBackendCanisterId);
+      return mainnetBackendCanisterId;
+    }
+    
     console.warn('[Config] 未找到 canister ID，返回空字符串');
     return '';
   },

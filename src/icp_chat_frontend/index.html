@@ -52,6 +52,16 @@
           if (urlCanisterId) {
             env.CANISTER_ID_ICP_CHAT_BACKEND = urlCanisterId;
           }
+          
+          // 如果是在主网（.ic0.app 或 .icp0.io），且没有从 URL 获取到 canister ID
+          // 尝试从 hostname 提取（如果 hostname 是后端 canister ID）
+          // 或者使用硬编码的主网 canister ID（从 canister_ids.json）
+          if (!env.CANISTER_ID_ICP_CHAT_BACKEND && detectedNetwork === 'ic') {
+            // 主网后端 canister ID（从 canister_ids.json 获取，部署时需要更新）
+            const mainnetBackendCanisterId = 'pxbfw-3iaaa-aaaam-qesya-cai';
+            env.CANISTER_ID_ICP_CHAT_BACKEND = mainnetBackendCanisterId;
+            console.log('[HTML Init] 使用主网后端 canister ID:', mainnetBackendCanisterId);
+          }
         }
         
         // 尝试从全局变量获取（DFX 可能注入）

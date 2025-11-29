@@ -62,6 +62,7 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
   const [base64Images, setBase64Images] = useState<string[]>([]);
   const [displayText, setDisplayText] = useState<string>('');
   const [decryptError, setDecryptError] = useState<boolean>(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   const loadImage = useCallback(async () => {
     if (imageId === undefined || imageId === null) {
@@ -176,13 +177,30 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
   const avatarText = getAvatarText(author);
 
   // 优先使用消息里带的头像和颜色（发送时的快照），如果没有则用本地传入的
-  const displayAvatar = authorAvatar || avatarUrl;
+  // 确保只有当头像是一个有效的非空字符串时才使用，否则显示文字头像
+  const displayAvatar = (authorAvatar && authorAvatar.trim()) || (avatarUrl && avatarUrl.trim()) || null;
   const displayColor = authorColor || nicknameColor;
+
+  // 当头像URL变化时，重置错误状态
+  useEffect(() => {
+    setAvatarError(false);
+  }, [displayAvatar]);
 
   return (
     <div ref={ref} className={`chat-message ${isOwn ? 'own' : ''}`} data-message-id={id}>
       <div className="message-avatar" style={{ backgroundColor: avatarColor }}>
-        {displayAvatar ? <img src={displayAvatar} alt="头像" /> : avatarText}
+        {displayAvatar && !avatarError ? (
+          <img 
+            src={displayAvatar} 
+            alt="头像" 
+            onError={() => {
+              // 图片加载失败时，回退到文字头像
+              setAvatarError(true);
+            }}
+          />
+        ) : (
+          avatarText
+        )}
       </div>
       <div className="message-body">
         <div className="message-header">

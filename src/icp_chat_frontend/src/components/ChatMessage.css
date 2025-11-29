@@ -87,10 +87,7 @@
 }
 
 /* 确保作者名在深色背景下也清晰可见 */
-.chat-message.own .message-author {
-  color: #ffffff;
-}
-
+/* 如果没有内联样式，保持时间为浅色；昵称颜色主要由内联 style 控制 */
 .chat-message.own .message-time {
   color: rgba(255, 255, 255, 0.85);
 }

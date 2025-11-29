@@ -5,6 +5,7 @@ import MessageInput from './MessageInput';
 import KeyManagement from './KeyManagement';
 import { encryptionService } from '../services/encryptionService';
 import { userProfileService } from '../services/userProfileService';
+import { getClientId } from '../services/clientIdentity';
 import '../App.css';
 
 const PAGE_SIZE = 10;
@@ -16,8 +17,6 @@ interface CachedChatState {
   currentPage: number;
   hasMoreMessages: boolean;
   timestamp: number;
-  currentUser?: string | null;
-  ownAuthors?: string[];
 }
 
 const loadCachedState = (): CachedChatState | null => {
@@ -64,14 +63,10 @@ const Chat: React.FC = () => {
   const [messageCount, setMessageCount] = useState(
     () => initialCachedState?.messageCount ?? 0,
   );
-  const [currentUser, setCurrentUser] = useState<string | null>(
-    () => initialCachedState?.currentUser ?? null,
-  );
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
   const [currentUserColor, setCurrentUserColor] = useState<string | null>(null);
-  const [ownAuthors, setOwnAuthors] = useState<string[]>(
-    () => initialCachedState?.ownAuthors ?? [],
-  );
+  const clientIdRef = useRef<string>(getClientId());
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [encryptionAvailable, setEncryptionAvailable] = useState<boolean>(false);
   const [showKeyManagement, setShowKeyManagement] = useState<boolean>(false);
@@ -96,10 +91,8 @@ const Chat: React.FC = () => {
       currentPage,
       hasMoreMessages,
       timestamp: Date.now(),
-      currentUser,
-      ownAuthors,
     });
-  }, [messages, messageCount, currentPage, hasMoreMessages, currentUser, ownAuthors]);
+  }, [messages, messageCount, currentPage, hasMoreMessages]);
 
   // 加载最新一页消息
   const loadLatestMessages = useCallback(async () => {
@@ -122,14 +115,8 @@ const Chat: React.FC = () => {
         if (profile) {
           setCurrentUserAvatar(profile.avatar ?? null);
           setCurrentUserColor(profile.color ?? null);
-          // 如果有昵称，把昵称加入“自己的作者名”列表，避免改名后历史消息失去高亮
           if (profile.nickname) {
-            setOwnAuthors((prev) =>
-              prev.includes(profile.nickname) ? prev : [...prev, profile.nickname],
-            );
-            if (!currentUser) {
-              setCurrentUser(profile.nickname);
-            }
+            setCurrentUser(profile.nickname);
           }
         }
       } catch (err) {
@@ -297,12 +284,8 @@ const Chat: React.FC = () => {
         setMessages((prev) => [...prev, result.message!]);
         setMessageCount((prev) => prev + 1);
         const author = result.message.author;
-        if (author && author !== '匿名') {
-          // 记录下“自己用过的作者名”，用于识别历史消息
-          setOwnAuthors((prev) => (prev.includes(author) ? prev : [...prev, author]));
-          if (!currentUser) {
-            setCurrentUser(author);
-          }
+        if (!currentUser && author && author !== '匿名') {
+          setCurrentUser(author);
         }
 
         // 当前窗口发送成功后，通知其他窗口刷新
@@ -405,7 +388,7 @@ const Chat: React.FC = () => {
           isLoadingMore={isLoadingMore}
           ownAvatar={currentUserAvatar}
           ownColor={currentUserColor}
-          ownAuthors={ownAuthors}
+          clientId={clientIdRef.current}
         />
 
         <MessageInput onSend={handleSendMessage} disabled={sending} />

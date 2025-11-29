@@ -23,7 +23,8 @@ actor ICPChat {
 
   public type Message = {
     id : Nat;
-    author : Text;
+    author : Text;      // 展示用昵称（发送时的快照）
+    senderId : Text;    // 稳定的发送者ID（前端生成的 clientId）
     text : Text;
     timestamp : Int;
     imageId : ?Nat; // 图片ID，如果有图片则不为null
@@ -267,7 +268,7 @@ actor ICPChat {
   };
   
   // 发送消息（带验证）
-  public shared ({ caller }) func sendMessage(text : Text, imageId : ?Nat) : async SendMessageResult {
+  public shared ({ caller }) func sendMessage(text : Text, imageId : ?Nat, senderId : Text) : async SendMessageResult {
     // 如果指定了图片ID，验证图片是否存在
     switch (imageId) {
       case (?id) {
@@ -305,6 +306,7 @@ actor ICPChat {
         let msg : Message = {
           id = nextId;
           author = author;
+          senderId = senderId;
           text = validText;
           timestamp = Time.now();
           imageId = imageId;

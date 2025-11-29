@@ -6,6 +6,7 @@ import { encryptionService } from '../services/encryptionService';
 export interface ChatMessageProps {
   id: number;
   author: string;
+  senderId: string;
   text: string;
   timestamp: bigint;
   imageId?: number | null;
@@ -172,17 +173,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   return (
     <div className={`chat-message ${isOwn ? 'own' : ''}`}>
       <div className="message-avatar" style={{ backgroundColor: avatarColor }}>
-        {isOwn && avatarUrl ? (
-          <img src={avatarUrl} alt="头像" />
-        ) : (
-          avatarText
-        )}
+        {avatarUrl ? <img src={avatarUrl} alt="头像" /> : avatarText}
       </div>
       <div className="message-body">
         <div className="message-header">
           <span
             className="message-author"
-            style={nicknameColor && !isOwn ? { color: nicknameColor } : undefined}
+            style={nicknameColor ? { color: nicknameColor } : undefined}
           >
             {author === '匿名' ? '匿名用户' : author}
           </span>

@@ -10,7 +10,7 @@ interface MessageListProps {
   isLoadingMore?: boolean;
   ownAvatar?: string | null;
   ownColor?: string | null;
-  ownAuthors?: string[];
+  clientId?: string;
 }
 
 const TOP_THRESHOLD = 60;
@@ -23,7 +23,7 @@ const MessageList: React.FC<MessageListProps> = ({
   isLoadingMore = false,
   ownAvatar,
   ownColor,
-  ownAuthors,
+  clientId,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -116,20 +116,12 @@ const MessageList: React.FC<MessageListProps> = ({
         <ChatMessage
           key={message.id}
           {...message}
-          isOwn={ownAuthors ? ownAuthors.includes(message.author) : currentUser ? message.author === currentUser : false}
+          isOwn={clientId ? message.senderId === clientId : false}
           avatarUrl={
-            ownAuthors && ownAuthors.includes(message.author)
-              ? ownAvatar
-              : currentUser && message.author === currentUser
-              ? ownAvatar
-              : undefined
+            clientId && message.senderId === clientId ? ownAvatar : undefined
           }
           nicknameColor={
-            ownAuthors && ownAuthors.includes(message.author)
-              ? ownColor
-              : currentUser && message.author === currentUser
-              ? ownColor
-              : undefined
+            clientId && message.senderId === clientId ? ownColor : undefined
           }
         />
       ))}

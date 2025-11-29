@@ -1,10 +1,12 @@
 import { createActor, createAnonymousActor } from './icpAgent';
 import type { _SERVICE } from '../declarations/icp_chat_backend/icp_chat_backend.did.d.ts';
 import { encryptionService } from './encryptionService';
+import { getClientId } from './clientIdentity';
 
 export interface Message {
   id: number;
   author: string;
+  senderId: string;
   text: string;
   timestamp: bigint;
   imageId?: number | null;
@@ -209,7 +211,8 @@ class ChatService {
       const imageIdOpt: [] | [bigint] = imageId !== undefined && imageId !== null ? [BigInt(imageId)] : [];
       const textPreview = text.length > 50 ? `${text.substring(0, 50)}...` : text;
       console.log(`[ChatService] 发送消息，text: "${textPreview}", imageId: ${imageId}, imageIdOpt:`, imageIdOpt);
-      const result = await this.actor!.sendMessage(encryptedText, imageIdOpt);
+      const senderId = getClientId();
+      const result = await this.actor!.sendMessage(encryptedText, imageIdOpt, senderId);
       if ('ok' in result) {
         // 清除消息缓存，因为发送了新消息
         this.clearMessagesCache();
@@ -237,6 +240,7 @@ class ChatService {
           message: {
             id: Number(msg.id),
             author: msg.author,
+            senderId: msg.senderId,
             text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,
@@ -313,7 +317,8 @@ class ChatService {
         return {
           id: Number(msg.id),
           author: msg.author,
-            text: decryptedText,
+          senderId: msg.senderId,
+          text: decryptedText,
           timestamp: msg.timestamp,
           imageId: imageIdValue,
         };
@@ -369,7 +374,8 @@ class ChatService {
         return {
           id: Number(msg.id),
           author: msg.author,
-            text: decryptedText,
+          senderId: msg.senderId,
+          text: decryptedText,
           timestamp: msg.timestamp,
           imageId: imageIdValue,
         };
@@ -412,6 +418,7 @@ class ChatService {
           return {
             id: Number(msg.id),
             author: msg.author,
+            senderId: msg.senderId,
             text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,

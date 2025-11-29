@@ -223,37 +223,39 @@ const Chat: React.FC = () => {
       <div className="chat-container">
         <div className="chat-header">
           <div className="header-left">
-            <h1>💬 美国要完蛋了-web3新时代</h1>
-            <span className="message-count">共 {messageCount} 条消息</span>
-            <div className="encryption-controls">
-              <label className="encryption-toggle" title="开启/关闭端到端加密">
-                <input
-                  type="checkbox"
-                  checked={encryptionAvailable && encryptionService.isEncryptionEnabled()}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      encryptionService.enableEncryption();
-                      setEncryptionAvailable(encryptionService.isAvailable());
-                    } else {
-                      encryptionService.disableEncryption();
-                      setEncryptionAvailable(false);
-                    }
-                  }}
-                  disabled={!encryptionService.canUseCrypto?.()}
-                />
-                <span className="encryption-label">
-                  {encryptionAvailable && encryptionService.isEncryptionEnabled() ? '🔒 端到端加密' : '🔓 未加密'}
-                </span>
-              </label>
-              {encryptionAvailable && encryptionService.isEncryptionEnabled() && (
-                <button
-                  className="key-management-btn"
-                  onClick={() => setShowKeyManagement(true)}
-                  title="密钥管理"
-                >
-                  🔑 密钥管理
-                </button>
-              )}
+            <h3>💬 美国要完蛋了-web3新时代</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="encryption-controls">
+                <label className="encryption-toggle" title="开启/关闭端到端加密">
+                  <input
+                    type="checkbox"
+                    checked={encryptionAvailable && encryptionService.isEncryptionEnabled()}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        encryptionService.enableEncryption();
+                        setEncryptionAvailable(encryptionService.isAvailable());
+                      } else {
+                        encryptionService.disableEncryption();
+                        setEncryptionAvailable(false);
+                      }
+                    }}
+                    disabled={!encryptionService.canUseCrypto?.()}
+                  />
+                  <span className="encryption-label">
+                    {encryptionAvailable && encryptionService.isEncryptionEnabled() ? '🔒 端到端加密' : '🔓 未加密'}
+                  </span>
+                </label>
+                {encryptionAvailable && encryptionService.isEncryptionEnabled() && (
+                  <button
+                    className="key-management-btn"
+                    onClick={() => setShowKeyManagement(true)}
+                    title="密钥管理"
+                  >
+                    🔑 密钥管理
+                  </button>
+                )}
+              </div>
+              <span className="message-count">共 {messageCount} 条消息</span>
             </div>
           </div>
           <div className="header-right">

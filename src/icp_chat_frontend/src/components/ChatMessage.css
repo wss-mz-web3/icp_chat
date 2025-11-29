@@ -1,9 +1,7 @@
 .chat-message {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
+  padding: 6px 10px 0 10px;
+  border-radius: 8px;
   animation: slideIn 0.3s ease-out;
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
@@ -13,7 +11,7 @@
 
 .chat-message:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); */
 }
 
 .chat-message.own {
@@ -25,8 +23,8 @@
 }
 
 .message-avatar {
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -43,8 +41,10 @@
 }
 
 .message-body {
-  flex: 1;
   min-width: 0;
+  background: #f5f5f5;  
+  border-radius: 8px;
+  padding: 8px 20px 0 10px;
 }
 
 .message-header {
@@ -68,6 +68,7 @@
 .message-time {
   font-size: 11px;
   opacity: 0.7;
+  padding-left: 12px;
 }
 
 .chat-message.own .message-time {

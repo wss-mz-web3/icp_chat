@@ -49,30 +49,6 @@ const MentionNotification: React.FC<MentionNotificationProps> = ({
     }
   }, [messageId, author, previewText, onJumpToMessage]);
 
-  // 播放提示音（如果浏览器支持）
-  useEffect(() => {
-    try {
-      // 使用 Web Audio API 生成提示音
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.value = 800; // 频率
-      oscillator.type = 'sine';
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
-    } catch (error) {
-      // 如果音频API不可用，静默失败
-      console.debug('音频提示不可用:', error);
-    }
-  }, []);
 
   return (
     <div 

@@ -33,8 +33,8 @@ const getAvatarColor = (name: string): string => {
 
 // 获取头像文字（首字母或前两个字符）
 const getAvatarText = (name: string): string => {
-  if (name === '匿名' || !name) {
-    return '匿';
+  if (name === '游客' || name === '匿名' || !name) {
+    return '游';
   }
   // 如果是中文，取第一个字符；如果是英文，取首字母大写
   const firstChar = name.charAt(0);
@@ -190,7 +190,7 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
             className="message-author"
             style={displayColor ? { color: displayColor } : undefined}
           >
-            {author === '匿名' ? '匿名用户' : author}
+            {author === '游客' || author === '匿名' ? '游客' : author}
           </span>
           <span className="message-time" title={formatFullTime(timestamp)}>
             {formatTime(timestamp)}

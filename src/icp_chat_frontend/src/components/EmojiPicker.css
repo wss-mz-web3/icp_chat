@@ -124,81 +124,6 @@
   transform: scale(0.98);
 }
 
-/* 网络表情包样式 */
-.sticker-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.sticker-item {
-  width: 100%;
-  aspect-ratio: 1;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: #f8f9fa;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  overflow: hidden;
-  position: relative;
-}
-
-.sticker-item:hover:not(:disabled) {
-  border-color: #459cd1;
-  background: #e6f4ff;
-  transform: scale(1.05);
-}
-
-.sticker-item:active:not(:disabled) {
-  transform: scale(1.02);
-}
-
-.sticker-item:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.sticker-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 4px;
-}
-
-.sticker-loading {
-  font-size: 12px;
-  color: #999;
-  text-align: center;
-}
-
-.sticker-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  height: 100%;
-  padding: 8px;
-}
-
-.sticker-error-icon {
-  font-size: 24px;
-  color: #ff6b6b;
-}
-
-.sticker-error-text {
-  font-size: 10px;
-  color: #999;
-  text-align: center;
-  word-break: break-word;
-  line-height: 1.2;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .emoji-picker {
@@ -217,10 +142,6 @@
     width: 32px;
     height: 32px;
     font-size: 20px;
-  }
-
-  .sticker-grid {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 

@@ -342,7 +342,7 @@ const Chat: React.FC = () => {
         setMessages((prev) => [...prev, result.message!]);
         setMessageCount((prev) => prev + 1);
         const author = result.message.author;
-        if (!currentUser && author && author !== '匿名') {
+        if (!currentUser && author && author !== '游客' && author !== '匿名') {
           setCurrentUser(author);
         }
 
@@ -460,7 +460,7 @@ const Chat: React.FC = () => {
             // 从消息中提取用户列表（去重）
             const userMap = new Map<string, { nickname: string; senderId: string; avatar?: string | null; color?: string | null }>();
             messages.forEach((msg) => {
-              if (msg.author && msg.author !== '匿名' && msg.senderId) {
+              if (msg.author && msg.author !== '游客' && msg.author !== '匿名' && msg.senderId) {
                 if (!userMap.has(msg.senderId)) {
                   userMap.set(msg.senderId, {
                     nickname: msg.author,

@@ -301,7 +301,7 @@ actor ICPChat {
               // 没有配置 Profile，昵称回退到默认规则，头像和颜色为 null
               let defaultAuthor =
                 if (Principal.isAnonymous(caller)) {
-                  "匿名";
+                  "游客";
                 } else {
                   Principal.toText(caller);
                 };

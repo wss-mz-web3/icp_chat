@@ -60,6 +60,6 @@ If you are hosting frontend code somewhere without using DFX, you may need to ma
 
 ### 体验地址：
 Frontend canister via browser
-  icp_chat_frontend: https://pqadc-wqaaa-aaaam-qesyq-cai.icp0.io/
-Backend canister via Candid interface:
+  - icp_chat_frontend: https://pqadc-wqaaa-aaaam-qesyq-cai.icp0.io/
+- Backend canister via Candid interface:
   icp_chat_backend: https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=pxbfw-3iaaa-aaaam-qesya-cai

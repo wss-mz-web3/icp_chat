@@ -22,6 +22,7 @@ const Chat: React.FC = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
   // 加载最新一页消息
   const loadLatestMessages = useCallback(async () => {
@@ -108,6 +109,35 @@ const Chat: React.FC = () => {
     }
   }, []);
 
+  // 多窗口/多标签页之间的消息同步（使用 BroadcastChannel）
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    // 有些环境（老浏览器）不支持 BroadcastChannel
+    const BC: typeof BroadcastChannel | undefined = (window as any).BroadcastChannel;
+    if (!BC) {
+      return;
+    }
+
+    const channel = new BC('icp-chat-message-sync');
+    broadcastChannelRef.current = channel;
+
+    channel.onmessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data && data.type === 'NEW_MESSAGE') {
+        // 收到其他窗口的新消息通知时，强制刷新最新一页消息
+        loadLatestMessages();
+      }
+    };
+
+    return () => {
+      channel.close();
+      broadcastChannelRef.current = null;
+    };
+  }, [loadLatestMessages]);
+
   // 自动刷新逻辑（仅在查看最新消息时触发）
   useEffect(() => {
     if (refreshIntervalRef.current) {
@@ -116,9 +146,10 @@ const Chat: React.FC = () => {
     }
 
     if (autoRefresh && !loading && currentPage === 1) {
+      // 为了多设备之间尽量“准实时”同步，这里使用较短的轮询间隔
       refreshIntervalRef.current = setInterval(() => {
         loadLatestMessages();
-      }, 10000);
+      }, 3000);
     }
 
     return () => {
@@ -128,6 +159,27 @@ const Chat: React.FC = () => {
       }
     };
   }, [autoRefresh, currentPage, loadLatestMessages, loading]);
+
+  // 窗口获得焦点 / 页面从后台切回前台时，主动拉一次最新消息（兼容不同设备之间的同步）
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadLatestMessages();
+      }
+    };
+
+    const handleFocus = () => {
+      loadLatestMessages();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadLatestMessages]);
 
   // 发送消息
   const handleSendMessage = async (text: string, imageId?: number | null) => {
@@ -141,6 +193,11 @@ const Chat: React.FC = () => {
         setMessageCount((prev) => prev + 1);
         if (!currentUser && result.message.author !== '匿名') {
           setCurrentUser(result.message.author);
+        }
+
+        // 当前窗口发送成功后，通知其他窗口刷新
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.postMessage({ type: 'NEW_MESSAGE' });
         }
       } else {
         setError(result.error || '发送失败');

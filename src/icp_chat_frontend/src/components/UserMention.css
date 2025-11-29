@@ -83,3 +83,69 @@
   font-weight: 600;
 }
 
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .user-mention {
+    width: 100%;
+    max-width: 320px;
+    max-height: 250px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    /* 移动端滚动优化 */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .user-mention-empty {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .user-mention-item {
+    padding: 12px;
+    gap: 10px;
+    min-height: 48px; /* 确保触摸目标足够大 */
+    /* 移动端触摸反馈 */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    touch-action: manipulation;
+  }
+
+  .user-mention-item:active {
+    background: #e9ecef;
+    transform: scale(0.98);
+  }
+
+  .user-mention-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+
+  .user-mention-name {
+    font-size: 13px;
+  }
+}
+
+/* 小屏幕手机优化 */
+@media (max-width: 480px) {
+  .user-mention {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+  }
+
+  .user-mention-item {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .user-mention-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .user-mention-name {
+    font-size: 12px;
+  }
+}
+

@@ -235,7 +235,7 @@ export const config = {
           console.log('[Config] 使用用户自定义的 API 端点:', host);
         } else {
           // 默认使用 icp-api.io，如果无法访问可以尝试其他端点
-          host = 'https://icp-api.io';
+        host = 'https://icp-api.io';
         }
       } else {
         // 通过 localhost 代理访问主网，使用 localhost:4943

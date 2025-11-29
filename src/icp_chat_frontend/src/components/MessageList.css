@@ -93,10 +93,19 @@
   .message-list {
     padding: 12px 8px;
     border-radius: 8px;
+    /* 移动端高度优化：使用 flex: 1 自动填充剩余空间，配合父容器的 flex 布局 */
+    flex: 1;
+    min-height: 0; /* 允许 flex 子元素缩小 */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .message-list.empty {
+    min-height: 0;
   }
 
   .empty-state {
-    min-height: 300px;
+    min-height: 200px;
   }
 
   .empty-icon {
@@ -124,10 +133,19 @@
 @media (max-width: 480px) {
   .message-list {
     padding: 10px 6px;
+    /* 小屏幕同样使用 flex: 1 自动填充 */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .message-list.empty {
+    min-height: 0;
   }
 
   .empty-state {
-    min-height: 250px;
+    min-height: 150px;
   }
 
   .empty-icon {

@@ -28,7 +28,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="app-wrapper">
       <Navigation />
-      <div style={{ width: '100%', height: 'calc(100% - 66px)', position: 'relative' }}>
+      <div className="app-content">
         {/* 渲染所有组件，但只显示当前匹配的 */}
         {/* 聊天页面 - 使用 display: none 保持状态 */}
         <div

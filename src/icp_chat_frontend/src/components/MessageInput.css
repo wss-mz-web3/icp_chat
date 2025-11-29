@@ -1,8 +1,9 @@
 .message-input-container {
   background: white;
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
 }
 
 .input-wrapper {
@@ -12,21 +13,53 @@
   position: relative;
 }
 
+/* 移动端：输入框和按钮在同一行 */
+@media (max-width: 768px) {
+  .input-wrapper {
+    gap: 8px;
+  }
+  
+  /* 图片预览和 base64 检测的图片仍然在上方 */
+  .image-preview,
+  .image-preview.base64-detected {
+    order: -1;
+    margin-bottom: 6px;
+  }
+  
+  /* 输入框和按钮容器改为行布局 */
+  .input-wrapper > textarea {
+    order: 1;
+  }
+  
+  .input-footer {
+    order: 2;
+  }
+}
+
 .message-input {
   width: 100%;
-  padding: 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 20px;
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
-  min-height: 60px;
-  transition: border-color 0.2s;
+  min-height: 44px;
+  max-height: 120px;
+  transition: all 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  background: #fafafa;
+  line-height: 1.5;
 }
 
 .message-input:focus {
   outline: none;
   border-color: #667eea;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .message-input:disabled {
@@ -201,61 +234,126 @@
 /* 移动端优化 */
 @media (max-width: 768px) {
   .message-input-container {
-    border-radius: 10px;
-    padding: 6px;
+    border-radius: 20px 20px 0 0; /* 顶部圆角，底部直角贴合屏幕 */
+    padding: 8px 10px 0 10px; /* 移除底部 padding，紧贴屏幕底部 */
+    margin-bottom: 0; /* 确保没有底部间距 */
+    /* 移动端固定定位优化 */
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    border: none;
+    border-top: 1px solid #f0f0f0;
   }
 
+  /* 移动端：将输入框和按钮放在同一行 */
   .input-wrapper {
-    gap: 10px;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 6px;
   }
 
   .message-input {
-    padding: 10px;
+    padding: 10px 14px;
     font-size: 16px; /* 防止 iOS 自动缩放 */
-    min-height: 50px;
-    border-radius: 6px;
+    height: 40px; /* 与按钮高度完全一致 */
+    min-height: 40px;
+    max-height: 100px; /* 限制最大高度，避免占用太多空间 */
+    border-radius: 20px; /* 圆角更圆润 */
+    line-height: 20px; /* 行高为字体大小的一半，配合 padding 实现垂直居中 */
+    /* 移动端滚动优化 */
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+    /* 禁用自动调整大小（移动端可能有问题） */
+    resize: none;
+    /* 移动端：输入框占据剩余空间 */
+    flex: 1;
+    margin: 0;
+    background: #fafafa;
+    /* 确保单行时垂直居中 */
+    box-sizing: border-box;
+  }
+  
+  .message-input:focus {
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
   }
 
   .image-preview {
     max-width: 250px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     border-radius: 6px;
+    order: -1; /* 确保图片预览在输入框上方 */
   }
 
   .remove-image-btn {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     font-size: 18px;
     top: 6px;
     right: 6px;
+    /* 增大触摸目标 */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .input-footer {
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 0;
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    flex-shrink: 0;
+    margin-left: 0;
   }
 
   .input-actions {
-    gap: 8px;
+    gap: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+  
+  .char-count {
+    display: none; /* 移动端隐藏字符计数，节省空间 */
   }
 
   .emoji-btn,
   .image-upload-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    border-radius: 6px;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    border-radius: 50%; /* 圆形按钮更美观 */
+    /* 确保触摸目标足够大 */
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 移动端触摸反馈 */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    touch-action: manipulation;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+  }
+
+  .emoji-btn:active,
+  .image-upload-btn:active {
+    transform: scale(0.95);
+    background: #e0e0e0;
   }
 
   .char-count {
     font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .send-button {
-    padding: 8px 20px;
-    font-size: 13px;
-    border-radius: 6px;
-    min-width: 60px;
+    /* 移动端隐藏发送按钮 */
+    display: none;
   }
 
   .base64-hint {
@@ -267,8 +365,9 @@
 /* 小屏幕手机优化 */
 @media (max-width: 480px) {
   .message-input-container {
-    padding: 5px;
-    border-radius: 8px;
+    padding: 6px 10px 0 10px; /* 移除底部 padding */
+    border-radius: 20px 20px 0 0;
+    margin-bottom: 0;
   }
 
   .input-wrapper {
@@ -276,10 +375,23 @@
   }
 
   .message-input {
-    padding: 8px;
+    padding: 9px 12px;
     font-size: 16px; /* 保持 16px 防止 iOS 缩放 */
-    min-height: 44px; /* iOS 推荐的最小触摸目标 */
-    border-radius: 5px;
+    height: 38px; /* 与按钮高度完全一致 */
+    min-height: 38px;
+    max-height: 90px; /* 小屏幕限制更严格 */
+    border-radius: 20px; /* 圆角更圆润 */
+    line-height: 20px; /* 行高为字体大小的一半，配合 padding 实现垂直居中 */
+    flex: 1;
+    margin: 0;
+    background: #fafafa;
+    /* 确保单行时垂直居中 */
+    box-sizing: border-box;
+  }
+  
+  .message-input:focus {
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
   }
 
   .image-preview {
@@ -288,43 +400,91 @@
   }
 
   .remove-image-btn {
-    width: 22px;
-    height: 22px;
-    font-size: 16px;
-    top: 4px;
-    right: 4px;
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    top: 6px;
+    right: 6px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .input-wrapper {
+    gap: 4px;
   }
 
   .input-footer {
-    gap: 6px;
+    gap: 0;
+    flex-wrap: nowrap;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .input-actions {
-    gap: 6px;
+    gap: 3px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .emoji-btn,
   .image-upload-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 16px;
-    border-radius: 5px;
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    border-radius: 50%; /* 圆形按钮更美观 */
+    min-width: 38px;
+    min-height: 38px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
   }
 
   .char-count {
     font-size: 10px;
+    display: none; /* 小屏幕隐藏字符计数，节省空间 */
   }
 
   .send-button {
-    padding: 7px 16px;
-    font-size: 12px;
-    border-radius: 5px;
-    min-width: 55px;
+    /* 小屏幕也隐藏发送按钮 */
+    display: none;
   }
 
   .base64-hint {
     font-size: 9px;
     padding: 2px 4px;
+  }
+}
+
+/* 超小屏幕优化（如 iPhone SE） */
+@media (max-width: 375px) {
+  .message-input {
+    padding: 8px 10px;
+    font-size: 16px;
+    min-height: 44px;
+    max-height: 90px;
+  }
+
+  .input-actions {
+    gap: 3px;
+  }
+
+  .emoji-btn,
+  .image-upload-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .send-button {
+    padding: 9px 16px;
+    font-size: 12px;
+    min-width: 60px;
+  }
+
+  .char-count {
+    font-size: 9px;
   }
 }
 

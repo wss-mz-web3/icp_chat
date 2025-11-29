@@ -75,7 +75,7 @@ export async function createActor(): Promise<_SERVICE> {
 
     if (!canisterId) {
       throw new Error('Canister ID 未配置。请先运行: dfx deploy');
-    }
+  }
 
     return await createActorWithFallback(canisterId, network, identity);
   } catch (error) {

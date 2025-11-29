@@ -25,6 +25,9 @@ actor ICPChat {
     id : Nat;
     author : Text;      // 展示用昵称（发送时的快照）
     senderId : Text;    // 稳定的发送者ID（前端生成的 clientId）
+    senderPrincipal : ?Principal; // 发送者的 Principal（如果是已登录用户），用于更新历史消息
+    authorAvatar : ?Text; // 头像（发送时的快照，从 UserProfile.avatar 取）
+    authorColor : ?Text;  // 昵称颜色（发送时的快照，从 UserProfile.color 取）
     text : Text;
     timestamp : Int;
     imageId : ?Nat; // 图片ID，如果有图片则不为null
@@ -287,26 +290,40 @@ actor ICPChat {
         return #err(msg);
       };
       case (#ok(validText)) {
-        // 优先使用用户自己的昵称；如果没有配置，再回退到默认规则
-        let author =
+        // 从 UserProfile 获取昵称、头像、颜色（发送时的快照）
+        let (author, authorAvatar, authorColor) =
           switch (userProfiles.get(caller)) {
             case (?profile) {
-              // 使用用户配置的昵称
-              profile.nickname;
+              // 使用用户配置的昵称、头像、颜色
+              (profile.nickname, profile.avatar, profile.color);
             };
             case (null) {
-              if (Principal.isAnonymous(caller)) {
-                "匿名";
-              } else {
-                Principal.toText(caller);
-              };
+              // 没有配置 Profile，昵称回退到默认规则，头像和颜色为 null
+              let defaultAuthor =
+                if (Principal.isAnonymous(caller)) {
+                  "匿名";
+                } else {
+                  Principal.toText(caller);
+                };
+              (defaultAuthor, null, null);
             };
+          };
+
+        // 如果不是匿名用户，存储 Principal，用于后续更新历史消息
+        let senderPrincipalOpt : ?Principal = 
+          if (Principal.isAnonymous(caller)) {
+            null;
+          } else {
+            ?caller;
           };
 
         let msg : Message = {
           id = nextId;
           author = author;
           senderId = senderId;
+          senderPrincipal = senderPrincipalOpt;
+          authorAvatar = authorAvatar;
+          authorColor = authorColor;
           text = validText;
           timestamp = Time.now();
           imageId = imageId;
@@ -634,6 +651,42 @@ actor ICPChat {
     };
 
     userProfiles.put(caller, profile);
+    
+    // 更新该用户发送的所有历史消息中的 author、authorAvatar、authorColor
+    // 只更新已登录用户的消息（匿名用户没有 Principal，无法匹配）
+    if (not Principal.isAnonymous(caller)) {
+      var updatedCount : Nat = 0;
+      messages := Array.tabulate<Message>(messages.size(), func(i : Nat) : Message {
+        let msg = messages[i];
+        switch (msg.senderPrincipal) {
+          case (?principal) {
+            // 如果消息的 senderPrincipal 匹配当前 caller，更新消息信息
+            if (Principal.equal(principal, caller)) {
+              updatedCount += 1;
+              {
+                id = msg.id;
+                author = profile.nickname;
+                senderId = msg.senderId;
+                senderPrincipal = msg.senderPrincipal;
+                authorAvatar = profile.avatar;
+                authorColor = profile.color;
+                text = msg.text;
+                timestamp = msg.timestamp;
+                imageId = msg.imageId;
+              }
+            } else {
+              msg
+            }
+          };
+          case (null) {
+            // 匿名用户的消息，不更新
+            msg
+          };
+        }
+      });
+      // 注意：这里 updatedCount 只是用于调试，实际不需要返回
+    };
+    
     #ok(true)
   };
 

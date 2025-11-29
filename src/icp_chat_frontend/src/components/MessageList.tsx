@@ -4,7 +4,7 @@ import './MessageList.css';
 
 interface MessageListProps {
   messages: ChatMessageProps[];
-  currentUser?: string;
+  currentUser?: string | null;
   onLoadMore?: () => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -112,19 +112,35 @@ const MessageList: React.FC<MessageListProps> = ({
           )}
         </div>
       )}
-      {messages.map((message) => (
-        <ChatMessage
-          key={message.id}
-          {...message}
-          isOwn={clientId ? message.senderId === clientId : false}
-          avatarUrl={
-            clientId && message.senderId === clientId ? ownAvatar : undefined
-          }
-          nicknameColor={
-            clientId && message.senderId === clientId ? ownColor : undefined
-          }
-        />
-      ))}
+      {messages.map((message) => {
+        // 判断是否是当前用户发送的消息
+        const isOwnMessage = clientId ? message.senderId === clientId : false;
+        
+        // 对于当前用户的消息：使用最新的 Profile 信息覆盖消息中的快照
+        // 这样修改个人信息后，历史消息也会显示更新后的信息
+        // 对于其他用户的消息：使用消息中的快照，保证所有浏览器看到一致的效果
+        const displayAvatar = isOwnMessage 
+          ? (ownAvatar ?? message.authorAvatar ?? undefined)
+          : (message.authorAvatar ?? undefined);
+        const displayColor = isOwnMessage
+          ? (ownColor ?? message.authorColor ?? undefined)
+          : (message.authorColor ?? undefined);
+        // 昵称也使用最新信息（如果是当前用户的消息）
+        const displayAuthor = isOwnMessage && currentUser
+          ? currentUser
+          : message.author;
+        
+        return (
+          <ChatMessage
+            key={message.id}
+            {...message}
+            author={displayAuthor}
+            isOwn={isOwnMessage}
+            avatarUrl={displayAvatar}
+            nicknameColor={displayColor}
+          />
+        );
+      })}
       <div ref={messagesEndRef} />
     </div>
   );

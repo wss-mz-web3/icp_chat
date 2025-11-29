@@ -7,6 +7,9 @@ export interface Message {
   id: number;
   author: string;
   senderId: string;
+  senderPrincipal?: string | null; // 发送者的 Principal（如果是已登录用户）
+  authorAvatar?: string | null;
+  authorColor?: string | null;
   text: string;
   timestamp: bigint;
   imageId?: number | null;
@@ -235,12 +238,18 @@ class ChatService {
         }
         
         console.log(`[ChatService] 消息发送成功，消息 ID: ${Number(msg.id)}, imageId: ${imageIdValue}, 原始 imageId:`, msg.imageId);
+        const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
+        const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
+        const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
         return {
           success: true,
           message: {
             id: Number(msg.id),
             author: msg.author,
             senderId: msg.senderId,
+            senderPrincipal: senderPrincipalValue,
+            authorAvatar: authorAvatarValue,
+            authorColor: authorColorValue,
             text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,
@@ -314,10 +323,16 @@ class ChatService {
             decryptedText = msg.text;
           }
           
+        const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
+        const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
+        const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
         return {
           id: Number(msg.id),
           author: msg.author,
           senderId: msg.senderId,
+          senderPrincipal: senderPrincipalValue,
+          authorAvatar: authorAvatarValue,
+          authorColor: authorColorValue,
           text: decryptedText,
           timestamp: msg.timestamp,
           imageId: imageIdValue,
@@ -371,10 +386,16 @@ class ChatService {
             decryptedText = msg.text;
           }
           
+        const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
+        const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
+        const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
         return {
           id: Number(msg.id),
           author: msg.author,
           senderId: msg.senderId,
+          senderPrincipal: senderPrincipalValue,
+          authorAvatar: authorAvatarValue,
+          authorColor: authorColorValue,
           text: decryptedText,
           timestamp: msg.timestamp,
           imageId: imageIdValue,
@@ -415,10 +436,16 @@ class ChatService {
             decryptedText = msg.text;
           }
           
+          const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
+          const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
+          const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
           return {
             id: Number(msg.id),
             author: msg.author,
             senderId: msg.senderId,
+            senderPrincipal: senderPrincipalValue,
+            authorAvatar: authorAvatarValue,
+            authorColor: authorColorValue,
             text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,

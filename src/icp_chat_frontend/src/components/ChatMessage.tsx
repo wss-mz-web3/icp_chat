@@ -7,6 +7,8 @@ export interface ChatMessageProps {
   id: number;
   author: string;
   senderId: string;
+  authorAvatar?: string | null;
+  authorColor?: string | null;
   text: string;
   timestamp: bigint;
   imageId?: number | null;
@@ -44,6 +46,8 @@ const getAvatarText = (name: string): string => {
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
   author,
+  authorAvatar,
+  authorColor,
   text,
   timestamp,
   imageId,
@@ -170,16 +174,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const avatarColor = getAvatarColor(author);
   const avatarText = getAvatarText(author);
 
+  // 优先使用消息里带的头像和颜色（发送时的快照），如果没有则用本地传入的
+  const displayAvatar = authorAvatar || avatarUrl;
+  const displayColor = authorColor || nicknameColor;
+
   return (
     <div className={`chat-message ${isOwn ? 'own' : ''}`}>
       <div className="message-avatar" style={{ backgroundColor: avatarColor }}>
-        {avatarUrl ? <img src={avatarUrl} alt="头像" /> : avatarText}
+        {displayAvatar ? <img src={displayAvatar} alt="头像" /> : avatarText}
       </div>
       <div className="message-body">
         <div className="message-header">
           <span
             className="message-author"
-            style={nicknameColor ? { color: nicknameColor } : undefined}
+            style={displayColor ? { color: displayColor } : undefined}
           >
             {author === '匿名' ? '匿名用户' : author}
           </span>

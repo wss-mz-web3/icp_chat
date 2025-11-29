@@ -92,6 +92,15 @@ const UserProfile: React.FC = () => {
         setError(error || '保存失败');
       } else {
         setSuccess('保存成功');
+        // 通知其他组件（如 Chat）Profile 已更新
+        if (typeof window !== 'undefined') {
+          const BC: typeof BroadcastChannel | undefined = (window as any).BroadcastChannel;
+          if (BC) {
+            const channel = new BC('icp-chat-message-sync');
+            channel.postMessage({ type: 'PROFILE_UPDATED' });
+            channel.close();
+          }
+        }
       }
     } catch (err) {
       console.error('[UserProfile] 保存用户资料异常:', err);

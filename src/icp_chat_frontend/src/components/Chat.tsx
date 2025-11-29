@@ -6,6 +6,7 @@ import KeyManagement from './KeyManagement';
 import { encryptionService } from '../services/encryptionService';
 import { userProfileService } from '../services/userProfileService';
 import { getClientId } from '../services/clientIdentity';
+import { authService } from '../services/authService';
 import '../App.css';
 
 const PAGE_SIZE = 10;
@@ -154,7 +155,9 @@ const Chat: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        await chatService.initialize();
+        // 根据 II 登录状态决定是否使用带身份的 actor
+        const authed = await authService.isAuthenticated();
+        await chatService.initialize(authed);
         // 如果已经从缓存渲染过一版，这里作为一次静默同步；否则仍然是首屏加载
         await loadLatestMessages();
       } catch (err) {
@@ -216,11 +219,25 @@ const Chat: React.FC = () => {
     const channel = new BC('icp-chat-message-sync');
     broadcastChannelRef.current = channel;
 
-    channel.onmessage = (event: MessageEvent) => {
+    channel.onmessage = async (event: MessageEvent) => {
       const data = event.data;
       if (data && data.type === 'NEW_MESSAGE') {
         // 收到其他窗口的新消息通知时，强制刷新最新一页消息
         loadLatestMessages();
+      } else if (data && data.type === 'PROFILE_UPDATED') {
+        // 收到 Profile 更新通知时，重新加载当前用户的 Profile
+        try {
+          const profile = await userProfileService.getProfile();
+          if (profile) {
+            setCurrentUserAvatar(profile.avatar ?? null);
+            setCurrentUserColor(profile.color ?? null);
+            if (profile.nickname) {
+              setCurrentUser(profile.nickname);
+            }
+          }
+        } catch (err) {
+          console.warn('[Chat] 刷新用户资料失败:', err);
+        }
       }
     };
 
@@ -382,7 +399,7 @@ const Chat: React.FC = () => {
 
         <MessageList
           messages={messages}
-          currentUser={currentUser || undefined}
+          currentUser={currentUser}
           onLoadMore={loadOlderMessages}
           hasMore={hasMoreMessages}
           isLoadingMore={isLoadingMore}

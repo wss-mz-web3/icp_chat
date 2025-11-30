@@ -78,13 +78,13 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
   const [avatarError, setAvatarError] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; messageRect?: DOMRect }>({ x: 0, y: 0 });
-  const [showMoreButton, setShowMoreButton] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [actionMenuPosition, setActionMenuPosition] = useState({ x: 0, y: 0 });
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hideMenuTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messageRef = useRef<HTMLDivElement | null>(null);
+  const messageBodyRef = useRef<HTMLDivElement | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const SCROLL_THRESHOLD = 10; // 移动超过10px认为是滚动
   
@@ -291,23 +291,6 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
     }
   };
 
-  // 处理点击三个点按钮
-  const handleMoreButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onReply && messageRef.current) {
-      const rect = messageRef.current.getBoundingClientRect();
-      const buttonRect = e.currentTarget.getBoundingClientRect();
-      // 将 tooltip 显示在按钮左边
-      setTooltipPosition({
-        x: buttonRect.left - 220, // 按钮左侧 - tooltip 宽度（约 220px）
-        y: buttonRect.top, // 与按钮顶部对齐
-        messageRect: rect,
-      });
-      setShowTooltip(true);
-    }
-  };
-
   // 处理长按（移动端）
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!onReply) return;
@@ -375,13 +358,11 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
       onReply(messageId, replyAuthor, replyText);
     }
     setShowTooltip(false);
-    setShowMoreButton(false);
   };
 
   // 关闭 tooltip 时也隐藏三个点按钮
   const handleCloseTooltip = () => {
     setShowTooltip(false);
-    setShowMoreButton(false);
   };
 
   // 清理定时器
@@ -418,20 +399,17 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
         )}
       </div>
       <div 
+        ref={messageBodyRef}
         className="message-body"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {onReply && (
-          <button
-            className={`message-more-button ${showMoreButton ? 'visible' : ''}`}
-            onClick={handleMoreButtonClick}
-            onMouseEnter={(e) => {
-              e.stopPropagation();
-              setShowMoreButton(true);
-            }}
-            title="回复"
-            aria-label="回复"
+        {showActionMenu && (
+          <MessageActionMenu
+            position={actionMenuPosition}
+            onReply={handleActionMenuReply}
+            onEmojiClick={handleEmojiClick}
+            onClose={() => setShowActionMenu(false)}
           />
         )}
         <div className="message-header">
@@ -547,14 +525,6 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
           ))}
         </div>
       </div>
-      {showActionMenu && (
-        <MessageActionMenu
-          position={actionMenuPosition}
-          onReply={handleActionMenuReply}
-          onEmojiClick={handleEmojiClick}
-          onClose={() => setShowActionMenu(false)}
-        />
-      )}
       {showTooltip && onReply && (
         <MessageTooltip
           messageId={id}

@@ -154,8 +154,10 @@ const MessageList: React.FC<MessageListProps> = ({
           ? (ownColor ?? message.authorColor ?? undefined)
           : (message.authorColor ?? undefined);
         // 昵称也使用最新信息（如果是当前用户的消息）
-        const displayAuthor = isOwnMessage && currentUser
-          ? currentUser
+        // 对于当前用户的消息，优先使用 currentUser，如果 currentUser 不存在，再使用 message.author
+        // 这样可以确保已登录用户发送的消息不会显示成"游客"
+        const displayAuthor = isOwnMessage
+          ? (currentUser || message.author)
           : message.author;
         
         // 查找回复的消息信息

@@ -37,7 +37,7 @@ const MessageTooltip: React.FC<MessageTooltipProps> = ({
           let x = position.x;
           let y = position.y;
 
-          // 如果超出左边界，向右调整（因为 tooltip 在按钮左边）
+          // 如果超出左边界，向右调整
           if (x < 10) {
             x = 10;
           }
@@ -53,7 +53,9 @@ const MessageTooltip: React.FC<MessageTooltipProps> = ({
           }
 
           // 确保不超出上边界
-          y = Math.max(10, y);
+          if (y < 10) {
+            y = 10;
+          }
 
           // 只有位置需要调整时才更新
           if (x !== position.x || y !== position.y) {

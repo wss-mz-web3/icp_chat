@@ -431,8 +431,16 @@ const Chat: React.FC = () => {
         setMessages((prev) => [...prev, result.message!]);
         setMessageCount((prev) => prev + 1);
         const author = result.message.author;
-        if (!currentUser && author && author !== '游客' && author !== '匿名') {
-          setCurrentUser(author);
+        // 如果当前用户还没有设置，且返回的作者不是"游客"或"匿名"，则设置当前用户
+        // 但如果是已登录用户发送的消息，即使后端返回"游客"（因为没设置 Profile），
+        // 也应该尝试从用户资料服务获取最新的昵称
+        if (!currentUser) {
+          if (author && author !== '游客' && author !== '匿名') {
+            setCurrentUser(author);
+          } else {
+            // 如果返回的是"游客"或"匿名"，但可能是已登录用户，尝试从用户资料服务获取
+            // 这个逻辑在 useEffect 中已经处理了，这里不需要重复
+          }
         }
 
         // 如果回复了别人的消息，添加回复通知

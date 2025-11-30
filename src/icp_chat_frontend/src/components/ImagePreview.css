@@ -1,12 +1,16 @@
 .image-preview-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
   background-color: rgba(0, 0, 0, 0.9);
-  z-index: 10000;
-  display: flex;
+  z-index: 999999 !important;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   cursor: default;
@@ -14,6 +18,9 @@
   pointer-events: auto;
   /* 允许触摸事件 */
   touch-action: manipulation;
+  /* 确保不受父容器影响 */
+  transform: none !important;
+  will-change: auto;
 }
 
 .image-preview-container {

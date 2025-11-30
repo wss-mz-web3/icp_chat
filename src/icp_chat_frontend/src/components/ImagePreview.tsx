@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import './ImagePreview.css';
 
 interface ImagePreviewProps {
@@ -154,7 +155,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ imageUrl, onClose }) => {
     return cleanup;
   }, []);
 
-  return (
+  // 使用 Portal 渲染到 body，确保不受父容器样式影响
+  const previewContent = (
     <div
       ref={containerRef}
       className="image-preview-overlay"
@@ -215,6 +217,11 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ imageUrl, onClose }) => {
       </div>
     </div>
   );
+
+  // 使用 Portal 渲染到 document.body，确保全屏显示
+  return typeof document !== 'undefined' 
+    ? createPortal(previewContent, document.body)
+    : previewContent;
 };
 
 export default ImagePreview;

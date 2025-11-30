@@ -1,0 +1,93 @@
+.message-action-menu {
+  position: fixed;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  animation: menuFadeIn 0.2s ease-out;
+  border: 1px solid #e0e0e0;
+  transform: translateX(-50%);
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.action-menu-item {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  padding: 0;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.action-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.action-menu-item:active {
+  background-color: #e0e0e0;
+}
+
+.action-menu-reply {
+  font-size: 18px;
+}
+
+.action-menu-comment {
+  position: relative;
+  font-size: 18px;
+}
+
+.comment-icon {
+  display: inline-block;
+}
+
+.comment-plus {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #666;
+  line-height: 1;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .message-action-menu {
+    padding: 3px 6px;
+    gap: 3px;
+    border-radius: 16px;
+  }
+
+  .action-menu-item {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    border-radius: 6px;
+  }
+
+  .action-menu-reply {
+    font-size: 14px;
+  }
+}

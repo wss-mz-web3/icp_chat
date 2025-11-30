@@ -12,6 +12,8 @@ interface MessageListProps {
   ownColor?: string | null;
   clientId?: string;
   scrollToMessageId?: number | null; // 要滚动到的消息 ID
+  onReply?: (messageId: number, author: string, text: string) => void; // 回复回调
+  onEmojiClick?: (messageId: number, author: string, text: string, emoji: string) => void; // 表情快速回复回调
 }
 
 const TOP_THRESHOLD = 60;
@@ -26,6 +28,8 @@ const MessageList: React.FC<MessageListProps> = ({
   ownColor,
   clientId,
   scrollToMessageId,
+  onReply,
+  onEmojiClick,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -154,6 +158,11 @@ const MessageList: React.FC<MessageListProps> = ({
           ? currentUser
           : message.author;
         
+        // 查找回复的消息信息
+        const replyToMessage = message.replyTo 
+          ? messages.find(m => m.id === message.replyTo)
+          : null;
+
         return (
         <ChatMessage
           key={message.id}
@@ -169,6 +178,11 @@ const MessageList: React.FC<MessageListProps> = ({
             isOwn={isOwnMessage}
             avatarUrl={displayAvatar}
             nicknameColor={displayColor}
+            replyTo={message.replyTo}
+            replyToAuthor={replyToMessage?.author || null}
+            replyToText={replyToMessage?.text || null}
+            onReply={onReply}
+            onEmojiClick={onEmojiClick}
         />
         );
       })}

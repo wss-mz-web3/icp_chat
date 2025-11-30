@@ -4,6 +4,7 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import KeyManagement from './KeyManagement';
 import MentionNotification from './MentionNotification';
+import ReplyNotification from './ReplyNotification';
 import { encryptionService } from '../services/encryptionService';
 import { userProfileService } from '../services/userProfileService';
 import { getClientId } from '../services/clientIdentity';
@@ -80,9 +81,12 @@ const Chat: React.FC = () => {
   );
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [mentionNotifications, setMentionNotifications] = useState<Array<{ messageId: number; author: string; text: string }>>([]);
+  const [replyNotifications, setReplyNotifications] = useState<Array<{ messageId: number; author: string; text: string; replyToId: number }>>([]);
   const [scrollToMessageId, setScrollToMessageId] = useState<number | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{ messageId: number; author: string; text: string } | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 将当前聊天状态保存到本地缓存
   useEffect(() => {
@@ -124,12 +128,42 @@ const Chat: React.FC = () => {
     });
   }, [currentUser]);
 
+  // 检测回复通知
+  const checkReplies = useCallback((newMessages: Message[], prevMessages: Message[]) => {
+    if (!currentUser) return;
+
+    newMessages.forEach((newMsg) => {
+      // 如果新消息有回复，且回复的是当前用户的消息
+      if (newMsg.replyTo) {
+        const repliedMessage = prevMessages.find((msg) => msg.id === newMsg.replyTo);
+        // 如果被回复的消息是当前用户发送的，且回复者不是当前用户
+        if (repliedMessage && repliedMessage.senderId === clientIdRef.current && newMsg.senderId !== clientIdRef.current) {
+          setReplyNotifications((prev) => {
+            // 避免重复通知
+            if (prev.some((n) => n.messageId === newMsg.id)) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                messageId: newMsg.id,
+                author: newMsg.author,
+                text: newMsg.text,
+                replyToId: newMsg.replyTo!,
+              },
+            ];
+          });
+        }
+      }
+    });
+  }, [currentUser]);
+
   // 加载最新一页消息
   const loadLatestMessages = useCallback(async () => {
     try {
       const pageData = await chatService.getMessagesPage(1, PAGE_SIZE);
       setMessages((prevMessages) => {
-        // 检测新消息中的@
+        // 检测新消息中的@和回复
         const newMessages = pageData.messages.filter(
           (newMsg) => !prevMessages.some((oldMsg) => oldMsg.id === newMsg.id)
         );
@@ -137,6 +171,8 @@ const Chat: React.FC = () => {
           // 使用 setTimeout 确保状态更新后再检测
           setTimeout(() => {
             checkMentions(newMessages);
+            // 检测回复通知
+            checkReplies(newMessages, prevMessages);
           }, 100);
         }
         return pageData.messages;
@@ -147,7 +183,7 @@ const Chat: React.FC = () => {
     } catch (err) {
       console.error('加载消息失败:', err);
     }
-  }, [currentUser, checkMentions]);
+  }, [currentUser, checkMentions, checkReplies]);
 
   // 加载当前用户的个人资料（用于头像等）
   useEffect(() => {
@@ -339,13 +375,58 @@ const Chat: React.FC = () => {
     };
   }, [loadLatestMessages]);
 
+  // 处理回复
+  const handleReply = (messageId: number, author: string, text: string) => {
+    setReplyingTo({ messageId, author, text });
+    // 滚动到输入框并聚焦
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  };
+
+  // 处理表情快速回复
+  const handleEmojiClick = (messageId: number, author: string, text: string, emoji: string) => {
+    // 设置回复状态
+    setReplyingTo({ messageId, author, text });
+    // 插入表情到输入框
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      // 设置值并触发 React 的 onChange 事件
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value'
+      )?.set;
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(textarea, emoji);
+      } else {
+        textarea.value = emoji;
+      }
+      // 触发 input 事件，让 React 检测到变化
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
+      // 聚焦并滚动到输入框
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(emoji.length, emoji.length);
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }
+  };
+
+  // 取消回复
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
   // 发送消息
   const handleSendMessage = async (text: string, imageId?: number | null) => {
     setSending(true);
     setError(null);
 
     try {
-      const result = await chatService.sendMessage(text, imageId);
+      const replyToId = replyingTo?.messageId || null;
+      const result = await chatService.sendMessage(text, imageId, replyToId);
       if (result.success && result.message) {
         setMessages((prev) => [...prev, result.message!]);
         setMessageCount((prev) => prev + 1);
@@ -353,6 +434,22 @@ const Chat: React.FC = () => {
         if (!currentUser && author && author !== '游客' && author !== '匿名') {
           setCurrentUser(author);
         }
+
+        // 如果回复了别人的消息，添加回复通知
+        if (replyingTo && replyingTo.author !== author) {
+          setReplyNotifications((prev) => [
+            ...prev,
+            {
+              messageId: result.message!.id,
+              author: result.message!.author,
+              text: result.message!.text,
+              replyToId: replyingTo.messageId,
+            },
+          ]);
+        }
+
+        // 清除回复状态
+        setReplyingTo(null);
 
         // 检测新发送的消息是否@了其他用户（虽然是自己发的，但可以用于测试）
         // 注意：自己@自己不会显示通知
@@ -459,11 +556,16 @@ const Chat: React.FC = () => {
           ownColor={currentUserColor}
           clientId={clientIdRef.current}
           scrollToMessageId={scrollToMessageId}
+          onReply={handleReply}
+          onEmojiClick={handleEmojiClick}
         />
 
         <MessageInput 
           onSend={handleSendMessage} 
           disabled={sending}
+          replyingTo={replyingTo}
+          onCancelReply={handleCancelReply}
+          textareaRef={textareaRef}
           users={(() => {
             // 从消息中提取用户列表（去重）
             const userMap = new Map<string, { nickname: string; senderId: string; avatar?: string | null; color?: string | null }>();
@@ -487,7 +589,7 @@ const Chat: React.FC = () => {
       {/* @ 通知 */}
       {mentionNotifications.map((notification, index) => (
         <MentionNotification
-          key={`${notification.messageId}-${index}`}
+          key={`mention-${notification.messageId}-${index}`}
           messageId={notification.messageId}
           author={notification.author}
           text={notification.text}
@@ -500,6 +602,29 @@ const Chat: React.FC = () => {
           }}
           onDismiss={() => {
             setMentionNotifications((prev) =>
+              prev.filter((n) => n.messageId !== notification.messageId)
+            );
+          }}
+        />
+      ))}
+      
+      {/* 回复通知 */}
+      {replyNotifications.map((notification, index) => (
+        <ReplyNotification
+          key={`reply-${notification.messageId}-${index}`}
+          messageId={notification.messageId}
+          author={notification.author}
+          text={notification.text}
+          replyToId={notification.replyToId}
+          onJumpToMessage={(messageId) => {
+            setScrollToMessageId(messageId);
+            // 清除该通知
+            setReplyNotifications((prev) =>
+              prev.filter((n) => n.messageId !== messageId)
+            );
+          }}
+          onDismiss={() => {
+            setReplyNotifications((prev) =>
               prev.filter((n) => n.messageId !== notification.messageId)
             );
           }}

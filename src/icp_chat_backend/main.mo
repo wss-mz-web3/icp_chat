@@ -31,6 +31,7 @@ actor ICPChat {
     text : Text;
     timestamp : Int;
     imageId : ?Nat; // 图片ID，如果有图片则不为null
+    replyTo : ?Nat; // 回复的消息ID，如果有回复则不为null
   };
 
   public type SendMessageResult = Result.Result<Message, Text>;
@@ -271,7 +272,7 @@ actor ICPChat {
   };
   
   // 发送消息（带验证）
-  public shared ({ caller }) func sendMessage(text : Text, imageId : ?Nat, senderId : Text) : async SendMessageResult {
+  public shared ({ caller }) func sendMessage(text : Text, imageId : ?Nat, senderId : Text, replyTo : ?Nat) : async SendMessageResult {
     // 如果指定了图片ID，验证图片是否存在
     switch (imageId) {
       case (?id) {
@@ -280,6 +281,23 @@ actor ICPChat {
             return #err("图片不存在");
           };
           case (_) {};
+        };
+      };
+      case null {};
+    };
+    
+    // 如果指定了回复的消息ID，验证消息是否存在
+    switch (replyTo) {
+      case (?replyId) {
+        var found : Bool = false;
+        label search for (msg in messages.vals()) {
+          if (msg.id == replyId) {
+            found := true;
+            break search;
+          };
+        };
+        if (not found) {
+          return #err("回复的消息不存在");
         };
       };
       case null {};
@@ -327,6 +345,7 @@ actor ICPChat {
           text = validText;
           timestamp = Time.now();
           imageId = imageId;
+          replyTo = replyTo;
         };
 
         // 清理旧消息（如果需要）
@@ -673,6 +692,7 @@ actor ICPChat {
                 text = msg.text;
                 timestamp = msg.timestamp;
                 imageId = msg.imageId;
+                replyTo = msg.replyTo;
               }
             } else {
               msg

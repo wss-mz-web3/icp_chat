@@ -7,6 +7,9 @@
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  position: relative;
+  user-select: text;
+  overflow: visible; /* 允许按钮显示在外部 */
 }
 
 .chat-message:hover {
@@ -50,6 +53,8 @@
   background: #f5f5f5;  
   border-radius: 8px;
   padding: 8px 20px 0 10px;
+  position: relative;
+  overflow: visible; /* 允许按钮显示在外部 */
 }
 
 /* 自己消息的气泡背景色 & 字体颜色 */
@@ -65,6 +70,7 @@
   margin-bottom: 8px;
   font-size: 12px;
   opacity: 0.8;
+  position: relative;
 }
 
 .chat-message.own .message-header {
@@ -80,6 +86,96 @@
   font-size: 11px;
   opacity: 0.7;
   padding-left: 12px;
+}
+
+/* 三个点按钮 - 在 message-body 右上角 */
+.message-more-button {
+  position: absolute;
+  right: 4px; /* 右上角 */
+  top: 4px; /* 右上角 */
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 10;
+  flex-shrink: 0;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+}
+
+.message-more-button.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.message-more-button:hover {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 使用伪类绘制回复箭头图标（向左的弯曲箭头） */
+.message-more-button::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #999;
+  border-top: none;
+  border-right: none;
+  border-radius: 0 0 0 12px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  transition: border-color 0.2s ease;
+}
+
+.message-more-button::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-right: 5px solid #999;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateX(-8px);
+  transition: border-right-color 0.2s ease;
+}
+
+.message-more-button:hover::before {
+  border-color: #666; /* 悬停时稍深的灰色 */
+}
+
+.message-more-button:hover::after {
+  border-right-color: #666; /* 悬停时稍深的灰色 */
+}
+
+.chat-message.own .message-more-button::before {
+  border-color: #999; /* 统一使用灰色 */
+}
+
+.chat-message.own .message-more-button::after {
+  border-right-color: #999; /* 统一使用灰色 */
+}
+
+.chat-message.own .message-more-button:hover::before {
+  border-color: #666; /* 悬停时稍深的灰色 */
+}
+
+.chat-message.own .message-more-button:hover::after {
+  border-right-color: #666; /* 悬停时稍深的灰色 */
 }
 
 .chat-message.own .message-time {
@@ -193,6 +289,69 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 回复消息样式 */
+.message-reply {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: rgba(102, 126, 234, 0.08);
+  border-left: 3px solid #667eea;
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.chat-message.own .message-reply {
+  background: rgba(255, 255, 255, 0.2);
+  border-left-color: rgba(255, 255, 255, 0.5);
+}
+
+.message-reply-line {
+  width: 2px;
+  background: #667eea;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.chat-message.own .message-reply-line {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.message-reply-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.message-reply-author {
+  font-size: 11px;
+  font-weight: 600;
+  color: #667eea;
+  line-height: 1.2;
+}
+
+.chat-message.own .message-reply-author {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.message-reply-text {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.chat-message.own .message-reply-text {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* 移动端优化 */

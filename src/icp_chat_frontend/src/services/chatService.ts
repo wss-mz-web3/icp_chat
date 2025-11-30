@@ -13,6 +13,7 @@ export interface Message {
   text: string;
   timestamp: bigint;
   imageId?: number | null;
+  replyTo?: number | null; // 回复的消息ID
 }
 
 export interface MessagePage {
@@ -189,7 +190,7 @@ class ChatService {
     }
   }
 
-  async sendMessage(text: string, imageId?: number | null): Promise<{ success: boolean; message?: Message; error?: string }> {
+  async sendMessage(text: string, imageId?: number | null, replyTo?: number | null): Promise<{ success: boolean; message?: Message; error?: string }> {
     if (!this.actor) {
       await this.initialize();
     }
@@ -212,10 +213,11 @@ class ChatService {
 
       // ICP 中 Opt<T> 类型在 JavaScript 中表示为数组：[] 表示 null，[value] 表示 some(value)
       const imageIdOpt: [] | [bigint] = imageId !== undefined && imageId !== null ? [BigInt(imageId)] : [];
+      const replyToOpt: [] | [bigint] = replyTo !== undefined && replyTo !== null ? [BigInt(replyTo)] : [];
       const textPreview = text.length > 50 ? `${text.substring(0, 50)}...` : text;
-      console.log(`[ChatService] 发送消息，text: "${textPreview}", imageId: ${imageId}, imageIdOpt:`, imageIdOpt);
+      console.log(`[ChatService] 发送消息，text: "${textPreview}", imageId: ${imageId}, replyTo: ${replyTo}`);
       const senderId = getClientId();
-      const result = await this.actor!.sendMessage(encryptedText, imageIdOpt, senderId);
+      const result = await this.actor!.sendMessage(encryptedText, imageIdOpt, senderId, replyToOpt);
       if ('ok' in result) {
         // 清除消息缓存，因为发送了新消息
         this.clearMessagesCache();
@@ -241,6 +243,7 @@ class ChatService {
         const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
         const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
         const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
+        const replyToValue = Array.isArray(msg.replyTo) && msg.replyTo.length > 0 ? Number(msg.replyTo[0]) : null;
         return {
           success: true,
           message: {
@@ -253,6 +256,7 @@ class ChatService {
             text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,
+            replyTo: replyToValue,
           },
         };
       } else {
@@ -326,6 +330,7 @@ class ChatService {
         const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
         const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
         const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
+        const replyToValue = Array.isArray(msg.replyTo) && msg.replyTo.length > 0 ? Number(msg.replyTo[0]) : null;
         return {
           id: Number(msg.id),
           author: msg.author,
@@ -336,6 +341,7 @@ class ChatService {
             text: decryptedText,
           timestamp: msg.timestamp,
           imageId: imageIdValue,
+          replyTo: replyToValue,
         };
         })
       );
@@ -389,6 +395,7 @@ class ChatService {
         const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
         const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
         const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
+        const replyToValue = Array.isArray(msg.replyTo) && msg.replyTo.length > 0 ? Number(msg.replyTo[0]) : null;
         return {
           id: Number(msg.id),
           author: msg.author,
@@ -399,6 +406,7 @@ class ChatService {
             text: decryptedText,
           timestamp: msg.timestamp,
           imageId: imageIdValue,
+          replyTo: replyToValue,
         };
         })
       );
@@ -439,6 +447,7 @@ class ChatService {
           const authorAvatarValue = Array.isArray(msg.authorAvatar) && msg.authorAvatar.length > 0 ? msg.authorAvatar[0] : null;
           const authorColorValue = Array.isArray(msg.authorColor) && msg.authorColor.length > 0 ? msg.authorColor[0] : null;
           const senderPrincipalValue = Array.isArray(msg.senderPrincipal) && msg.senderPrincipal.length > 0 ? String(msg.senderPrincipal[0]) : null;
+          const replyToValue = Array.isArray(msg.replyTo) && msg.replyTo.length > 0 ? Number(msg.replyTo[0]) : null;
           return {
             id: Number(msg.id),
             author: msg.author,
@@ -449,6 +458,7 @@ class ChatService {
             text: decryptedText,
             timestamp: msg.timestamp,
             imageId: imageIdValue,
+            replyTo: replyToValue,
           };
         })
       );

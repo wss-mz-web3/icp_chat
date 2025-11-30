@@ -204,6 +204,125 @@
   font-weight: 600;
 }
 
+/* 回复预览样式 - 在输入框上方 */
+.reply-preview-wrapper {
+  margin-bottom: 8px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reply-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.reply-preview-line {
+  width: 3px;
+  height: 20px;
+  background: #459cd1; /* 蓝色竖线 */
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.reply-preview-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.reply-preview-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #459cd1; /* 蓝色文字 */
+  flex-shrink: 0;
+}
+
+.reply-preview-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333; /* 黑色用户名 */
+  flex-shrink: 0;
+}
+
+.reply-preview-text {
+  font-size: 13px;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.reply-preview-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.reply-preview-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .reply-preview-wrapper {
+    margin-bottom: 6px;
+  }
+
+  .reply-preview {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .reply-preview-line {
+    width: 2px;
+    height: 18px;
+  }
+
+  .reply-preview-label,
+  .reply-preview-author,
+  .reply-preview-text {
+    font-size: 12px;
+  }
+
+  .reply-preview-close {
+    width: 18px;
+    height: 18px;
+    font-size: 14px;
+  }
+}
+
 .send-button {
   padding: 10px 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

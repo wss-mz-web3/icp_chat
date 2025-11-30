@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './ChatMessage.css';
 import { chatService } from '../services/chatService';
 import { encryptionService } from '../services/encryptionService';
+import MessageTooltip from './MessageTooltip';
+import MessageActionMenu from './MessageActionMenu';
 
 export interface ChatMessageProps {
   id: number;
@@ -15,6 +17,11 @@ export interface ChatMessageProps {
   isOwn?: boolean;
   avatarUrl?: string | null;
   nicknameColor?: string | null;
+  replyTo?: number | null; // 回复的消息ID
+  replyToAuthor?: string | null; // 回复的消息作者
+  replyToText?: string | null; // 回复的消息内容
+  onReply?: (messageId: number, author: string, text: string) => void; // 回复回调
+  onEmojiClick?: (messageId: number, author: string, text: string, emoji: string) => void; // 表情快速回复回调
 }
 
 // 根据用户名生成头像颜色
@@ -55,6 +62,11 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
   isOwn = false,
   avatarUrl,
   nicknameColor,
+  replyTo,
+  replyToAuthor,
+  replyToText,
+  onReply,
+  onEmojiClick,
 }, ref) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -63,6 +75,30 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
   const [displayText, setDisplayText] = useState<string>('');
   const [decryptError, setDecryptError] = useState<boolean>(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; messageRect?: DOMRect }>({ x: 0, y: 0 });
+  const [showMoreButton, setShowMoreButton] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ x: 0, y: 0 });
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hideMenuTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const messageRef = useRef<HTMLDivElement | null>(null);
+  
+  // 合并 refs
+  const setRefs = useCallback((node: HTMLDivElement | null) => {
+    // 设置外部 ref
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      // 使用类型断言处理 ref
+      const mutableRef = ref as React.MutableRefObject<HTMLDivElement | null>;
+      if (mutableRef) {
+        mutableRef.current = node;
+      }
+    }
+    // 设置内部 ref
+    messageRef.current = node;
+  }, [ref]);
 
   const loadImage = useCallback(async () => {
     if (imageId === undefined || imageId === null) {
@@ -186,8 +222,159 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
     setAvatarError(false);
   }, [displayAvatar]);
 
+  // 处理鼠标悬停显示操作菜单（在 message-body 上）
+  const handleMouseEnter = () => {
+    // 清除可能存在的隐藏定时器
+    if (hideMenuTimerRef.current) {
+      clearTimeout(hideMenuTimerRef.current);
+      hideMenuTimerRef.current = null;
+    }
+    if (messageRef.current) {
+      const rect = messageRef.current.getBoundingClientRect();
+      // 菜单显示在消息上方，居中对齐，更靠近消息框
+      setActionMenuPosition({
+        x: rect.left + rect.width / 2, // 消息中心
+        y: rect.top - 35, // 消息上方，更近（留出一点空间让鼠标移入）
+      });
+      setShowActionMenu(true);
+    }
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 检查鼠标是否移到了操作菜单上
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (relatedTarget) {
+      if (relatedTarget.closest('.message-action-menu') || 
+          relatedTarget.closest('.message-tooltip') || 
+          relatedTarget.closest('.message-more-button')) {
+        // 清除可能存在的隐藏定时器
+        if (hideMenuTimerRef.current) {
+          clearTimeout(hideMenuTimerRef.current);
+          hideMenuTimerRef.current = null;
+        }
+        return; // 如果移到了菜单、tooltip 或按钮上，不隐藏
+      }
+    }
+    // 延迟隐藏，给鼠标时间移入菜单
+    hideMenuTimerRef.current = setTimeout(() => {
+      // 再次检查鼠标是否在菜单上
+      const menuElement = document.querySelector('.message-action-menu');
+      if (menuElement && menuElement.matches(':hover')) {
+        return; // 鼠标在菜单上，不隐藏
+      }
+      // 如果 tooltip 没有显示，则隐藏操作菜单
+      if (!showTooltip) {
+        setShowActionMenu(false);
+      }
+      hideMenuTimerRef.current = null;
+    }, 150);
+  };
+
+  // 处理操作菜单中的回复按钮 - 直接显示回复框，不显示面板
+  const handleActionMenuReply = () => {
+    if (onReply) {
+      // 直接调用回复回调，不显示 tooltip
+      onReply(id, author, text);
+      setShowActionMenu(false);
+    }
+  };
+
+  // 处理表情按钮点击
+  const handleEmojiClick = (emoji: string) => {
+    if (onEmojiClick) {
+      onEmojiClick(id, author, text, emoji);
+      setShowActionMenu(false);
+    }
+  };
+
+  // 处理点击三个点按钮
+  const handleMoreButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onReply && messageRef.current) {
+      const rect = messageRef.current.getBoundingClientRect();
+      const buttonRect = e.currentTarget.getBoundingClientRect();
+      // 将 tooltip 显示在按钮左边
+      setTooltipPosition({
+        x: buttonRect.left - 220, // 按钮左侧 - tooltip 宽度（约 220px）
+        y: buttonRect.top, // 与按钮顶部对齐
+        messageRect: rect,
+      });
+      setShowTooltip(true);
+    }
+  };
+
+  // 处理长按（移动端）
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!onReply) return;
+    
+    const touch = e.touches[0];
+    const touchX = touch.clientX;
+    const touchY = touch.clientY;
+    
+    longPressTimerRef.current = setTimeout(() => {
+      // 长按触发，显示工具提示
+      if (messageRef.current) {
+        const rect = messageRef.current.getBoundingClientRect();
+        // 将 tooltip 显示在触摸位置
+        setTooltipPosition({
+          x: touchX, // 触摸的 X 坐标
+          y: touchY, // 触摸的 Y 坐标
+          messageRect: rect, // 传递消息的位置信息
+        });
+        setShowTooltip(true);
+      }
+    }, 500); // 500ms 长按
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleTouchMove = () => {
+    // 移动时取消长按
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleReply = (messageId: number, replyAuthor: string, replyText: string) => {
+    if (onReply) {
+      onReply(messageId, replyAuthor, replyText);
+    }
+    setShowTooltip(false);
+    setShowMoreButton(false);
+  };
+
+  // 关闭 tooltip 时也隐藏三个点按钮
+  const handleCloseTooltip = () => {
+    setShowTooltip(false);
+    setShowMoreButton(false);
+  };
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div ref={ref} className={`chat-message ${isOwn ? 'own' : ''}`} data-message-id={id}>
+    <>
+      <div 
+        ref={setRefs}
+        className={`chat-message ${isOwn ? 'own' : ''}`} 
+        data-message-id={id}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+      >
       <div className="message-avatar" style={{ backgroundColor: avatarColor }}>
         {displayAvatar && !avatarError ? (
           <img 
@@ -202,7 +389,23 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
           avatarText
         )}
       </div>
-      <div className="message-body">
+      <div 
+        className="message-body"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {onReply && (
+          <button
+            className={`message-more-button ${showMoreButton ? 'visible' : ''}`}
+            onClick={handleMoreButtonClick}
+            onMouseEnter={(e) => {
+              e.stopPropagation();
+              setShowMoreButton(true);
+            }}
+            title="回复"
+            aria-label="回复"
+          />
+        )}
         <div className="message-header">
           <span
             className="message-author"
@@ -214,6 +417,18 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
             {formatTime(timestamp)}
           </span>
         </div>
+        {/* 显示回复的内容 */}
+        {replyTo && replyToAuthor && replyToText && (
+          <div className="message-reply">
+            <div className="message-reply-line"></div>
+            <div className="message-reply-content">
+              <span className="message-reply-author">{replyToAuthor}</span>
+              <span className="message-reply-text">
+                {replyToText.length > 50 ? replyToText.substring(0, 50) + '...' : replyToText}
+              </span>
+            </div>
+          </div>
+        )}
         <div className="message-content">
           {displayText && (
             <div className="message-text">
@@ -300,7 +515,26 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
           ))}
         </div>
       </div>
+      {showActionMenu && (
+        <MessageActionMenu
+          position={actionMenuPosition}
+          onReply={handleActionMenuReply}
+          onEmojiClick={handleEmojiClick}
+          onClose={() => setShowActionMenu(false)}
+        />
+      )}
+      {showTooltip && onReply && (
+        <MessageTooltip
+          messageId={id}
+          messageAuthor={author}
+          messageText={text}
+          position={{ x: tooltipPosition.x, y: tooltipPosition.y }}
+          onReply={handleReply}
+          onClose={handleCloseTooltip}
+        />
+      )}
     </div>
+    </>
   );
 });
 

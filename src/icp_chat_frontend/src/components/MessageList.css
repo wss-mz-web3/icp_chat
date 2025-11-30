@@ -1,7 +1,8 @@
 .message-list {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  overflow-x: visible; /* 允许按钮显示在外部 */
+  padding: 20px 50px 20px 20px; /* 右侧留出空间给三个点按钮 */
   border-radius: 12px;
   margin-bottom: 8px;
 }
@@ -91,12 +92,13 @@
 /* 移动端优化 */
 @media (max-width: 768px) {
   .message-list {
-    padding: 12px 8px;
+    padding: 12px 40px 12px 8px; /* 右侧留出空间 */
     border-radius: 8px;
     /* 移动端高度优化：使用 flex: 1 自动填充剩余空间，配合父容器的 flex 布局 */
     flex: 1;
     min-height: 0; /* 允许 flex 子元素缩小 */
     overflow-y: auto;
+    overflow-x: visible; /* 允许按钮显示在外部 */
     -webkit-overflow-scrolling: touch;
   }
 
@@ -132,11 +134,12 @@
 /* 小屏幕手机优化 */
 @media (max-width: 480px) {
   .message-list {
-    padding: 10px 6px;
+    padding: 10px 35px 10px 6px; /* 右侧留出空间 */
     /* 小屏幕同样使用 flex: 1 自动填充 */
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: visible; /* 允许按钮显示在外部 */
     -webkit-overflow-scrolling: touch;
   }
 

@@ -9,6 +9,9 @@ interface MessageInputProps {
   disabled?: boolean;
   placeholder?: string;
   users?: User[]; // 用户列表，用于 @ 功能
+  replyingTo?: { messageId: number; author: string; text: string } | null; // 正在回复的消息
+  onCancelReply?: () => void; // 取消回复回调
+  textareaRef?: React.RefObject<HTMLTextAreaElement>; // 外部传入的 textarea ref
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -16,6 +19,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
   disabled = false,
   placeholder = '输入消息...',
   users = [],
+  replyingTo,
+  onCancelReply,
+  textareaRef: externalTextareaRef,
 }) => {
   const [text, setText] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -27,7 +33,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPosition, setMentionPosition] = useState<{ start: number; end: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = externalTextareaRef || internalTextareaRef;
   const mentionRef = useRef<HTMLDivElement>(null);
   const MAX_LENGTH = 1000;
   const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -248,6 +255,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    // 发送成功后，如果有回复状态，由父组件清除
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -312,37 +320,56 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const isNearLimit = remainingChars < 100;
 
   return (
-    <div className="message-input-container">
-      <div className="input-wrapper" ref={mentionRef}>
-        {showEmojiPicker && (
-          <EmojiPicker
-            onSelect={handleEmojiSelect}
-            onClose={() => setShowEmojiPicker(false)}
-          />
-        )}
-        {showUserMention && users.length > 0 && (
-          <UserMention
-            users={users}
-            onSelect={handleUserSelect}
-            onClose={() => setShowUserMention(false)}
-            searchQuery={mentionQuery}
-          />
-        )}
-        {imagePreview && (
-          <div className="image-preview">
-            <img src={imagePreview} alt="预览" />
-            <button className="remove-image-btn" onClick={removeImage} disabled={disabled || uploading}>
+    <>
+      {/* 回复预览 - 在输入框上方 */}
+      {replyingTo && (
+        <div className="reply-preview-wrapper">
+          <div className="reply-preview">
+            <div className="reply-preview-line"></div>
+            <div className="reply-preview-content">
+              <span className="reply-preview-label">回复</span>
+              <span className="reply-preview-author">{replyingTo.author}</span>
+              <span className="reply-preview-text">
+                {replyingTo.text.length > 30 ? replyingTo.text.substring(0, 30) + '...' : replyingTo.text}
+              </span>
+            </div>
+            <button className="reply-preview-close" onClick={onCancelReply} title="取消回复">
               ×
             </button>
           </div>
-        )}
-        {detectedBase64 && !imagePreview && (
-          <div className="image-preview base64-detected">
-            <img src={detectedBase64.dataUrl} alt="检测到的图片" />
-            <div className="base64-hint">检测到图片，发送时将自动上传</div>
-          </div>
-        )}
-        <textarea
+        </div>
+      )}
+      <div className="message-input-container">
+        <div className="input-wrapper" ref={mentionRef}>
+          {showEmojiPicker && (
+            <EmojiPicker
+              onSelect={handleEmojiSelect}
+              onClose={() => setShowEmojiPicker(false)}
+            />
+          )}
+          {showUserMention && users.length > 0 && (
+            <UserMention
+              users={users}
+              onSelect={handleUserSelect}
+              onClose={() => setShowUserMention(false)}
+              searchQuery={mentionQuery}
+            />
+          )}
+          {imagePreview && (
+            <div className="image-preview">
+              <img src={imagePreview} alt="预览" />
+              <button className="remove-image-btn" onClick={removeImage} disabled={disabled || uploading}>
+                ×
+              </button>
+            </div>
+          )}
+          {detectedBase64 && !imagePreview && (
+            <div className="image-preview base64-detected">
+              <img src={detectedBase64.dataUrl} alt="检测到的图片" />
+              <div className="base64-hint">检测到图片，发送时将自动上传</div>
+            </div>
+          )}
+          <textarea
           ref={textareaRef}
           className="message-input"
           value={text}
@@ -391,6 +418,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

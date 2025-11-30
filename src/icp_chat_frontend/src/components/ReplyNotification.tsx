@@ -14,7 +14,7 @@ const ReplyNotification: React.FC<ReplyNotificationProps> = ({
   messageId,
   author,
   text,
-  replyToId,
+  replyToId: _replyToId,
   onJumpToMessage,
   onDismiss,
 }) => {

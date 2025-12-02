@@ -1,6 +1,5 @@
 import { HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
-// import { IDL } from '@dfinity/candid';
 import { AccountIdentifier, LedgerCanister, SubAccount } from '@dfinity/ledger-icp';
 
 // 类型定义，避免循环引用
@@ -62,21 +61,6 @@ const LEDGER_CANISTER_ID_MAINNET = 'ryjl3-tyaaa-aaaaa-aaaba-cai';
 //     transfer: IDL.Func([TransferArgs], [TransferResult], []),
 //   });
 // };
-
-// Ledger Actor 接口类型
-// 注意：虽然 IDL 定义为 Vec<Nat8>，但我们需要传递 number[]
-// 根据错误信息，Ledger 期望参数名为 account 而不是 account_identifier
-// interface LedgerService {
-//   account_balance: (args: { account: number[] }) => Promise<{ e8s: bigint }>;
-//   transfer: (args: {
-//     to: Uint8Array | number[];
-//     fee: { e8s: bigint };
-//     memo: bigint;
-//     from_subaccount?: [] | [Uint8Array | number[]];
-//     created_at_time?: [] | [{ timestamp_nanos: bigint }];
-//     amount: { e8s: bigint };
-//   }) => Promise<{ Ok?: bigint; Err?: any }>;
-// }
 
 // 创建 Ledger Actor
 // async function createLedgerActor(): Promise<LedgerService> {
@@ -143,7 +127,7 @@ export async function principalToAccountIdentifier(
     if (subAccount) {
       subAccountObj = SubAccount.fromBytes(subAccount);
     }
-    
+
     const accountId = AccountIdentifier.fromPrincipal({
       principal,
       subAccount: subAccountObj,
@@ -294,6 +278,62 @@ export async function transferICP(
       throw error;
     }
     
+    throw new Error('转账失败：未知错误');
+  }
+}
+
+// 直接向收款地址（AccountIdentifier Hex）转账 ICP
+export async function transferICPToAccountId(
+  toAccountIdHex: string,
+  amount: bigint,
+  memo?: bigint
+): Promise<bigint> {
+  try {
+    const isAuthenticated = await authService.isAuthenticated();
+    if (!isAuthenticated) {
+      throw new Error('请先登录以进行转账。转账需要 Internet Identity 身份验证。');
+    }
+
+    const identity = await authService.getIdentity();
+    const network = config.network;
+    const host = config.host;
+
+    const agent = new HttpAgent({
+      host,
+      identity,
+    });
+
+    if (network !== 'ic') {
+      try {
+        await agent.fetchRootKey();
+      } catch (error) {
+        console.warn('[WalletService] 获取 root key 失败，继续尝试:', error);
+      }
+    }
+
+    const ledgerCanister = LedgerCanister.create({
+      agent,
+      canisterId: Principal.fromText(LEDGER_CANISTER_ID_MAINNET),
+    });
+
+    // 使用收款地址 Hex 构造 AccountIdentifier
+    // @ts-ignore - 类型定义可能不包含 fromHex，但运行时是存在的
+    const toAccountIdentifier: AccountIdentifier = AccountIdentifier.fromHex(toAccountIdHex);
+
+    const blockHeight = await ledgerCanister.transfer({
+      to: toAccountIdentifier,
+      amount,
+      fee: BigInt(10000),
+      memo: memo || BigInt(0),
+      createdAt: BigInt(Date.now() * 1000000),
+    });
+
+    return blockHeight;
+  } catch (error) {
+    console.error('[WalletService] 向收款地址转账失败:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
     throw new Error('转账失败：未知错误');
   }
 }

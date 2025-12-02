@@ -5,6 +5,7 @@ import './Wallet.css';
 import {
   getAccountBalance,
   transferICP,
+  transferICPToAccountId,
   formatICP,
   icpToE8s,
   getCurrentPrincipal,
@@ -115,15 +116,8 @@ const Wallet: React.FC = () => {
       setTransferError('请填写完整的转账信息');
       return;
     }
-
-    // 验证 Principal 格式
-    let toPrincipal: Principal;
-    try {
-      toPrincipal = Principal.fromText(transferTo.trim());
-    } catch (err) {
-      setTransferError('无效的 Principal 地址');
-      return;
-    }
+    
+    const toInput = transferTo.trim();
 
     // 验证金额
     const amount = parseFloat(transferAmount);
@@ -145,8 +139,28 @@ const Wallet: React.FC = () => {
 
       const amountE8s = icpToE8s(amount);
       const memo = transferMemo ? BigInt(transferMemo) : BigInt(0);
-      
-      const blockHeight = await transferICP(toPrincipal, amountE8s, memo);
+      let blockHeight: bigint;
+
+      // 1. 如果包含 '-'，优先按 Principal 解析
+      if (toInput.includes('-')) {
+        try {
+          const toPrincipal = Principal.fromText(toInput);
+          blockHeight = await transferICP(toPrincipal, amountE8s, memo);
+        } catch {
+          setTransferError('无效的 Principal 地址');
+          return;
+        }
+      } else {
+        // 2. 尝试按收款地址（AccountIdentifier Hex，64位十六进制）解析
+        const hex = toInput.toLowerCase();
+        const hexRegex = /^[0-9a-f]+$/;
+        if (hex.length === 64 && hexRegex.test(hex)) {
+          blockHeight = await transferICPToAccountId(hex, amountE8s, memo);
+        } else {
+          setTransferError('无效的地址，请输入 Principal 或 64 位十六进制收款地址');
+          return;
+        }
+      }
       
       setTransferSuccess(`转账成功！区块高度: ${blockHeight.toString()}`);
       

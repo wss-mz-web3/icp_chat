@@ -17,16 +17,35 @@ cd ../..
 dfx start --background
 ```
 
+# 升级后端（保留所有历史数据）
+dfx deploy --network ic --upgrade-unchanged icp_chat_backend
+
+# 如果前端有更新
+cd src/icp_chat_frontend && npm run build && cd ../..
+dfx deploy --network ic --upgrade-unchanged icp_chat_frontend
+
 ### 3. 部署后端并生成类型声明
 
+**首次部署**：
 ```bash
 dfx deploy
 ```
 
+**后续升级（保留数据）**：
+```bash
+# 使用升级模式，保留所有历史数据
+dfx deploy --upgrade-unchanged
+```
+
 这会自动：
-- 部署后端 canister
+- 部署后端 canister（首次）或升级现有 canister（保留数据）
 - 生成前端需要的类型声明文件
 - 创建 `.env` 文件（包含 canister ID）
+
+**重要提示**：
+- 使用 `--upgrade-unchanged` 可以保留所有历史消息和数据
+- 如果使用 `dfx deploy` 而不加 `--upgrade-unchanged`，在某些情况下可能会重新创建 canister，导致数据丢失
+- 更多信息请参考 `DATA_PERSISTENCE.md`
 
 ### 4. 构建前端
 
@@ -78,14 +97,26 @@ dfx identity whoami
 
 2. **部署后端到主网**
 
+**首次部署**：
 ```bash
 dfx deploy --network ic icp_chat_backend
 ```
 
+**后续升级（保留数据）**：
+```bash
+# 使用升级模式，保留所有历史数据
+dfx deploy --network ic --upgrade-unchanged icp_chat_backend
+```
+
 这会自动：
-- 部署后端 canister 到主网
+- 部署后端 canister 到主网（首次）或升级现有 canister（保留数据）
 - 生成类型声明文件
 - 更新 `.env` 文件（包含主网的 canister ID）
+
+**重要提示**：
+- 使用 `--upgrade-unchanged` 可以保留所有历史消息和数据
+- 如果使用 `dfx deploy` 而不加 `--upgrade-unchanged`，在某些情况下可能会重新创建 canister，导致数据丢失
+- 更多信息请参考 `DATA_PERSISTENCE.md`
 
 3. **构建前端（重要：必须在部署后端之后）**
 

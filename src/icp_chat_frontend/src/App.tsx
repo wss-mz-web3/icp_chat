@@ -5,6 +5,7 @@ import Chat from './components/Chat';
 import NewsList from './components/NewsList';
 import NewsDetail from './components/NewsDetail';
 import UserProfile from './components/UserProfile';
+import Wallet from './components/Wallet';
 import './App.css';
 
 /**
@@ -18,12 +19,14 @@ const AppContent: React.FC = () => {
   const chatComponent = useMemo(() => <Chat key="chat" />, []);
   const newsListComponent = useMemo(() => <NewsList key="news-list" />, []);
   const profileComponent = useMemo(() => <UserProfile key="user-profile" />, []);
+  const walletComponent = useMemo(() => <Wallet key="wallet" />, []);
 
   // 判断当前应该显示哪个组件
   const isNewsDetail = location.pathname.startsWith('/news/') && location.pathname !== '/news';
   const isChat = location.pathname === '/';
   const isNewsList = location.pathname === '/news';
   const isProfile = location.pathname === '/profile';
+  const isWallet = location.pathname === '/wallet';
 
   return (
     <div className="app-wrapper">
@@ -85,6 +88,20 @@ const AppContent: React.FC = () => {
           }}
         >
           {profileComponent}
+        </div>
+
+        {/* 钱包页面 - 使用 display: none 保持状态 */}
+        <div
+          style={{
+            display: isWallet ? 'block' : 'none',
+            width: '100%',
+            height: '100%',
+            position: isWallet ? 'relative' : 'absolute',
+            top: 0,
+            left: 0,
+          }}
+        >
+          {walletComponent}
         </div>
       </div>
     </div>

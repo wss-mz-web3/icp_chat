@@ -55,6 +55,12 @@ const Navigation: React.FC = () => {
           >
             👤 个人信息
           </Link>
+          <Link
+            to="/wallet"
+            className={`nav-link ${isActive('/wallet') ? 'active' : ''}`}
+          >
+            💰 钱包
+          </Link>
           <div className="nav-auth">
             {config.network === 'ic' && (
               <button

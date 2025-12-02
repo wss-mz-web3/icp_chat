@@ -102,16 +102,20 @@ actor ICPChat {
   
   // 系统升级时保存数据
   system func preupgrade() {
+    // 保存所有需要持久化的数据
     imagesStable := imagesToArray();
     userKeysStable := userKeysToArray();
     groupKeysStable := groupKeysToArray();
     userProfilesStable := userProfilesToArray();
+    // 注意：messages 是 stable var，会自动持久化，不需要手动处理
   };
   
   // 系统升级时恢复数据
   system func postupgrade() {
+    // 恢复图片数据
     imagesFromArray(imagesStable);
     imagesStable := [];
+    
     // 恢复用户密钥和群组密钥（如果存在）
     if (userKeysStable.size() > 0) {
       userKeysFromArray(userKeysStable);
@@ -121,11 +125,14 @@ actor ICPChat {
       groupKeysFromArray(groupKeysStable);
       groupKeysStable := [];
     };
+    
     // 恢复用户资料
     if (userProfilesStable.size() > 0) {
       userProfilesFromArray(userProfilesStable);
       userProfilesStable := [];
     };
+    
+    // 注意：messages 是 stable var，会自动恢复，不需要手动处理
   };
 
   // 验证消息文本（这里简单用非空 + 长度限制，避免 trim 的版本差异问题）
@@ -474,6 +481,117 @@ actor ICPChat {
     true
   };
 
+  // ========== 数据备份和恢复功能 ==========
+  
+  // 导出所有数据（用于备份）
+  public query func exportAllData() : async {
+    messages : [Message];
+    nextId : Nat;
+    nextImageId : Nat;
+    userProfiles : [(Principal, UserProfile)];
+    messageCount : Nat;
+    profileCount : Nat;
+  } {
+    {
+      messages = messages;
+      nextId = nextId;
+      nextImageId = nextImageId;
+      userProfiles = userProfilesToArray();
+      messageCount = messages.size();
+      profileCount = userProfiles.size();
+    }
+  };
+  
+  // 检查数据完整性
+  public query func checkDataIntegrity() : async {
+    messageCount : Nat;
+    nextId : Nat;
+    isConsistent : Bool;
+    hasData : Bool;
+  } {
+    let count = messages.size();
+    let consistent = nextId >= count; // nextId 应该 >= 消息数量
+    {
+      messageCount = count;
+      nextId = nextId;
+      isConsistent = consistent;
+      hasData = count > 0;
+    }
+  };
+  
+  // 导入消息数据（用于恢复）- 合并模式
+  public shared ({ caller }) func importMessages(importedMessages : [Message], importedNextId : Nat) : async Result.Result<Bool, Text> {
+    // 验证数据
+    if (importedMessages.size() > MAX_MESSAGES) {
+      return #err("导入的消息数量超过最大限制");
+    };
+    
+    // 合并消息（保留现有消息，添加新消息）
+    // 如果 nextId 小于导入的 nextId，更新 nextId
+    if (importedNextId > nextId) {
+      nextId := importedNextId;
+    };
+    
+    // 合并消息数组（去重，基于消息 ID）
+    var existingIds : HashMap.HashMap<Nat, Bool> = HashMap.HashMap<Nat, Bool>(0, Nat.equal, Hash.hash);
+    for (msg in messages.vals()) {
+      existingIds.put(msg.id, true);
+    };
+    
+    var newMessages : [Message] = [];
+    for (msg in importedMessages.vals()) {
+      switch (existingIds.get(msg.id)) {
+        case (null) {
+          // 新消息，添加
+          newMessages := Array.append(newMessages, [msg]);
+          existingIds.put(msg.id, true);
+        };
+        case (_) {
+          // 已存在，跳过
+        };
+      };
+    };
+    
+    // 合并到现有消息
+    messages := Array.append(messages, newMessages);
+    
+    // 如果消息数量超过限制，清理旧消息
+    cleanupOldMessages();
+    
+    #ok(true)
+  };
+  
+  // 完全替换消息数据（谨慎使用！）
+  public shared ({ caller }) func replaceAllMessages(newMessages : [Message], newNextId : Nat) : async Result.Result<Bool, Text> {
+    // 验证数据
+    if (newMessages.size() > MAX_MESSAGES) {
+      return #err("消息数量超过最大限制");
+    };
+    
+    // 完全替换
+    messages := newMessages;
+    nextId := newNextId;
+    
+    #ok(true)
+  };
+  
+  // 获取数据统计信息
+  public query func getDataStats() : async {
+    messageCount : Nat;
+    nextId : Nat;
+    nextImageId : Nat;
+    profileCount : Nat;
+    imageCount : Nat;
+  } {
+    {
+      messageCount = messages.size();
+      nextId = nextId;
+      nextImageId = nextImageId;
+      profileCount = userProfiles.size();
+      imageCount = images.size();
+    }
+  };
+
   // ========== 密钥同步相关功能 ==========
   
   // 用户密钥存储：Principal -> 加密后的密钥（Base64）
@@ -626,11 +744,10 @@ actor ICPChat {
 
   // 保存/更新当前 Principal 的用户资料
   public shared ({ caller }) func saveUserProfile(profile : UserProfile) : async Result.Result<Bool, Text> {
-    // 注意：为了方便本地开发和匿名访问，这里暂时允许匿名 Principal 也保存资料。
-    // 在正式环境中可以恢复下面的校验，强制要求登录身份：
-    // if (Principal.isAnonymous(caller)) {
-    //   return #err("匿名用户无法保存个人资料");
-    // };
+    // 只允许已登录用户保存个人资料
+    if (Principal.isAnonymous(caller)) {
+      return #err("请先登录以保存个人资料");
+    };
 
     // 简单校验：昵称不能为空且长度限制
     if (Text.size(profile.nickname) == 0) {

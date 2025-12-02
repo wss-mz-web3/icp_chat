@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './KeyManagement.css';
 import { userProfileService, type UserProfile as Profile } from '../services/userProfileService';
 import { compressImageToDataURL } from '../utils/imageCompression';
+import { authService } from '../services/authService';
 
 const UserProfile: React.FC = () => {
   const [profile, setProfile] = useState<Profile>({
@@ -14,11 +15,18 @@ const UserProfile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
+        // 检查登录状态
+        const authed = await authService.isAuthenticated();
+        if (!mounted) return;
+        setIsAuthenticated(authed);
+        
+        // 加载用户资料
         const data = await userProfileService.getProfile();
         if (!mounted) return;
         if (data) {
@@ -101,6 +109,13 @@ const UserProfile: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 检查登录状态
+    if (!isAuthenticated) {
+      setError('请先登录以保存个人资料');
+      return;
+    }
+    
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -134,6 +149,33 @@ const UserProfile: React.FC = () => {
       <div className="key-management-container">
         <h2 className="key-management-title">个人信息配置</h2>
         <p>加载中...</p>
+      </div>
+    );
+  }
+
+  // 未登录时显示提示
+  if (!isAuthenticated) {
+    return (
+      <div className="key-management-page">
+        <div className="key-management-card">
+          <div className="key-management-card-header">
+            <div>
+              <h2 className="key-management-title">个人信息配置</h2>
+              <p className="key-management-desc">
+                设置你的昵称、头像与主题色，发送消息时会以这里的配置作为「直播间角色」展示。
+              </p>
+            </div>
+          </div>
+          <div className="key-management-empty">
+            <p>请先登录以修改个人资料</p>
+            <button
+              className="key-management-button primary"
+              onClick={() => authService.login()}
+            >
+              登录
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

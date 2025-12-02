@@ -243,6 +243,16 @@ const Chat: React.FC = () => {
         
         if (errorMessage.includes('Canister ID')) {
           userMessage = 'Canister ID 未配置。请先运行: dfx deploy';
+        } else if (errorMessage.includes('canister_not_found') || errorMessage.includes('does not exist')) {
+          // Canister 不存在错误
+          userMessage = 'Canister 不存在。可能的原因：\n' +
+            '1. Canister 未部署或已被删除\n' +
+            '2. 使用了错误的 canister ID\n' +
+            '3. 网络配置不匹配（本地/主网）\n\n' +
+            '解决方案：\n' +
+            '- 运行修复脚本: ./fix-canister-id.sh\n' +
+            '- 或重新部署: dfx deploy --upgrade-unchanged icp_chat_backend\n' +
+            '- 重新构建前端: cd src/icp_chat_frontend && npm run build';
         } else if (errorMessage.includes('fetchRootKey') || errorMessage.includes('network')) {
           const network = (window as any).__ICP_ENV__?.DFX_NETWORK || 'local';
           if (network === 'ic') {
@@ -491,7 +501,6 @@ const Chat: React.FC = () => {
       <div className="chat-container">
         <div className="chat-header">
           <div className="header-left">
-            <h3>💬 美国要完蛋了-web3新时代</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div className="encryption-controls">
                 <label className="encryption-toggle" title="开启/关闭端到端加密">

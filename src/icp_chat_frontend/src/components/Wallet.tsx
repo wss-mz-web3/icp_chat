@@ -36,8 +36,6 @@ interface WalletRecord {
   time: string;
 }
 
-const WALLET_RECORDS_STORAGE_KEY = 'icp_wallet_records';
-
 const Wallet: React.FC = () => {
   const [balance, setBalance] = useState<bigint | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -60,60 +58,14 @@ const Wallet: React.FC = () => {
   const [showReceive, setShowReceive] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // 本地账单 / 收款记录
-  const [records, setRecords] = useState<WalletRecord[]>([]);
+  // 筛选器
   const [recordFilter, setRecordFilter] = useState<'all' | WalletRecordType>('all');
-  // 链上历史记录
+  // 链上历史记录（唯一数据源）
   const [onchainRecords, setOnchainRecords] = useState<ParsedIcpTxRecord[]>([]);
   const [onchainCursor, setOnchainCursor] = useState<bigint | null>(null);
   const [onchainHasMore, setOnchainHasMore] = useState<boolean>(true);
   const [onchainLoading, setOnchainLoading] = useState<boolean>(false);
   const [onchainError, setOnchainError] = useState<string | null>(null);
-
-  // 从 localStorage 恢复记录
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      const raw = window.localStorage.getItem(WALLET_RECORDS_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as WalletRecord[];
-      if (Array.isArray(parsed)) {
-        setRecords(
-          parsed
-            .filter(
-              (r) =>
-                r &&
-                (r.type === 'send' || r.type === 'receive') &&
-                typeof r.address === 'string' &&
-                typeof r.amount === 'number' &&
-                typeof r.time === 'string'
-            )
-            // 按时间倒序
-            .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-            .slice(0, 100)
-        );
-      }
-    } catch (err) {
-      console.warn('[Wallet] 恢复本地账单记录失败:', err);
-    }
-  }, []);
-
-  const persistRecords = (next: WalletRecord[]) => {
-    try {
-      if (typeof window === 'undefined') return;
-      window.localStorage.setItem(WALLET_RECORDS_STORAGE_KEY, JSON.stringify(next));
-    } catch (err) {
-      console.warn('[Wallet] 保存本地账单记录失败:', err);
-    }
-  };
-
-  const addLocalRecord = (record: WalletRecord) => {
-    setRecords((prev) => {
-      const next = [record, ...prev].slice(0, 100);
-      persistRecords(next);
-      return next;
-    });
-  };
 
   const formatRecordTime = (isoTime: string) => {
     const d = new Date(isoTime);
@@ -121,10 +73,9 @@ const Wallet: React.FC = () => {
     return d.toLocaleString();
   };
 
-  const mergeLocalAndOnchain = (
-    filter: 'all' | WalletRecordType,
-  ): WalletRecord[] => {
-    const onchainMapped: WalletRecord[] = onchainRecords.map((tx) => ({
+  // 将链上记录转换为 WalletRecord 格式，并按筛选器过滤
+  const getFilteredRecords = (): WalletRecord[] => {
+    const mapped: WalletRecord[] = onchainRecords.map((tx) => ({
       id: `onchain-${tx.index.toString()}`,
       type: tx.direction,
       address: tx.direction === 'send' ? tx.to : tx.from,
@@ -132,20 +83,31 @@ const Wallet: React.FC = () => {
       time: new Date(Number(tx.timestampNs / BigInt(1_000_000))).toISOString(),
     }));
 
-    const merged = [...onchainMapped, ...records];
+    // 按时间倒序排列（最新的在前）
+    const sorted = mapped.sort((a, b) => {
+      const timeA = new Date(a.time).getTime();
+      const timeB = new Date(b.time).getTime();
+      return timeB - timeA;
+    });
 
-    if (filter === 'all') return merged;
-    return merged.filter((r) => r.type === filter);
+    if (recordFilter === 'all') return sorted;
+    return sorted.filter((r) => r.type === recordFilter);
   };
 
   const loadOnchainHistory = async (reset = false) => {
-    if (onchainLoading) return;
+    if (onchainLoading) {
+      console.log('[Wallet] loadOnchainHistory: 已在加载中，跳过');
+      return;
+    }
+    console.log('[Wallet] loadOnchainHistory: 开始加载，reset =', reset);
     try {
       setOnchainLoading(true);
       setOnchainError(null);
 
       const cursor = reset ? null : onchainCursor;
+      console.log('[Wallet] loadOnchainHistory: 调用 getIcpTxHistory, cursor =', cursor);
       const page = await getIcpTxHistory(cursor ?? null, 20);
+      console.log('[Wallet] loadOnchainHistory: 获取到', page.items.length, '条记录');
 
       setOnchainRecords((prev) =>
         reset ? page.items : [...prev, ...page.items],
@@ -182,9 +144,10 @@ const Wallet: React.FC = () => {
               setAccountIdentifierHex(accountIdentifierToHex(accountId));
             }
             
-            // 延迟一下再加载余额，确保身份已完全初始化
+            // 延迟一下再加载余额和链上历史，确保身份已完全初始化
             setTimeout(() => {
               loadBalance();
+              loadOnchainHistory(true); // 自动加载第一页链上历史
             }, 500);
           } else {
             setError('无法获取用户身份。请尝试退出并重新登录。');
@@ -290,15 +253,6 @@ const Wallet: React.FC = () => {
       
       setTransferSuccess(`转账成功！区块高度: ${blockHeight.toString()}`);
 
-      // 记录本地账单（转账记录）
-      addLocalRecord({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        type: 'send',
-        address: toInput,
-        amount,
-        time: new Date().toISOString(),
-      });
-      
       // 清空表单
       setTransferTo('');
       setTransferAmount('');
@@ -377,7 +331,7 @@ const Wallet: React.FC = () => {
     );
   }
 
-  const filteredRecords = mergeLocalAndOnchain(recordFilter);
+  const filteredRecords = getFilteredRecords();
 
   return (
     <div className="wallet-container">
@@ -586,12 +540,16 @@ const Wallet: React.FC = () => {
           )}
 
           <div className="wallet-records-hint">
-            优先展示链上真实交易历史，并补充你在本浏览器中通过该钱包发起的本地记录，方便查看<strong>对方地址、时间和金额</strong>。
+            仅显示链上真实交易历史，所有记录均从 ICP 区块链查询，方便查看<strong>对方地址、时间和金额</strong>。
           </div>
 
           {filteredRecords.length === 0 ? (
             <div className="wallet-records-empty">
-              暂无交易记录。完成一次转账或稍后重试加载链上记录。
+              {onchainLoading
+                ? '正在加载链上交易记录...'
+                : onchainError
+                ? '加载链上记录失败，请稍后重试'
+                : '暂无链上交易记录。完成转账后，记录会出现在链上。'}
             </div>
           ) : (
             <div className="wallet-records-table-wrapper">

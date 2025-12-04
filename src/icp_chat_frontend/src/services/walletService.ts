@@ -468,19 +468,25 @@ export async function getIcpTxHistory(
   const safeLimit = BigInt(Math.min(limit, 100));
 
   try {
+    console.log('[WalletService] getIcpTxHistory: 开始，cursor =', rawCursor, 'limit =', limit);
     const actor = await createActor();
+    console.log('[WalletService] getIcpTxHistory: actor 创建成功');
 
     // 兼容老版本后端：如果还没有部署带 getIcpTxHistory 的 canister，给出友好提示
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyActor = actor as any;
     if (typeof anyActor.getIcpTxHistory !== 'function') {
+      console.error('[WalletService] getIcpTxHistory: 方法不存在');
       throw new Error('当前后端版本未提供交易历史接口，请先升级/重新部署后端 canister。');
     }
+    console.log('[WalletService] getIcpTxHistory: 方法存在，准备调用');
     const cursor: bigint | null = rawCursor ?? null;
     const cursorOpt: [] | [bigint] =
       cursor === null ? [] : [cursor as bigint];
 
+    console.log('[WalletService] getIcpTxHistory: 调用后端接口，cursorOpt =', cursorOpt, 'limit =', safeLimit);
     const page = await anyActor.getIcpTxHistory(cursorOpt, safeLimit);
+    console.log('[WalletService] getIcpTxHistory: 后端返回', page.txs?.length || 0, '条记录');
     return parseHistoryPage(page);
   } catch (error) {
     console.error('[WalletService] 获取交易历史失败:', error);

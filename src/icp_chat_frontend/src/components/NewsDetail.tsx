@@ -58,7 +58,7 @@ const NewsDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="news-detail-container">
+      <div className="news-detail-container" style={{ textAlign: 'center' }}>
         <div className="loading-spinner"></div>
         <p>加载中...</p>
       </div>

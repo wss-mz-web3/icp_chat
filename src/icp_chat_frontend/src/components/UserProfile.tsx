@@ -146,7 +146,7 @@ const UserProfile: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="key-management-container">
+      <div className="key-management-container" style={{ textAlign: 'center' }}>
         <h2 className="key-management-title">个人信息配置</h2>
         <p>加载中...</p>
       </div>

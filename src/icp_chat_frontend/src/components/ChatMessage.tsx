@@ -557,7 +557,7 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(({
                     aspectRatio: `${imageDimensions.width} / ${imageDimensions.height}`,
                   } : undefined}
                 >
-                  <div className="image-placeholder-content">
+                  <div className="image-placeholder-content" style={{ textAlign: 'center' }}>
                     <div className="image-placeholder-spinner"></div>
                     <span>加载中...</span>
                   </div>

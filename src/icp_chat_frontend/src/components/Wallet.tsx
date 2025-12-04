@@ -358,7 +358,7 @@ const Wallet: React.FC = () => {
           <div className="wallet-balance-section">
             <div className="wallet-label">余额</div>
             {loading ? (
-              <div className="wallet-balance-loading">加载中...</div>
+              <div className="wallet-balance-loading" style={{ textAlign: 'center' }}>加载中...</div>
             ) : error ? (
               <div className="wallet-balance-error">{error}</div>
             ) : balance !== null ? (

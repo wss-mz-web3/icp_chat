@@ -65,7 +65,7 @@ const NewsList: React.FC = () => {
     return (
       <div className="news-list-container">
         <div className="loading-spinner"></div>
-        <p>加载新闻中...</p>
+        <p style={{ textAlign: 'center' }}>加载新闻中...</p>
       </div>
     );
   }

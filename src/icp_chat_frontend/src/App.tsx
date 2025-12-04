@@ -1,12 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Navigation from './components/Navigation';
-import Chat from './components/Chat';
-import NewsList from './components/NewsList';
-import NewsDetail from './components/NewsDetail';
-import UserProfile from './components/UserProfile';
-import Wallet from './components/Wallet';
 import './App.css';
+import { keepAliveRoutes, normalRoutes } from './router';
 
 /**
  * 组件缓存容器：保持组件状态，避免路由切换时重新渲染
@@ -15,94 +11,96 @@ import './App.css';
 const AppContent: React.FC = () => {
   const location = useLocation();
 
-  // 使用 useMemo 确保组件实例只创建一次
-  const chatComponent = useMemo(() => <Chat key="chat" />, []);
-  const newsListComponent = useMemo(() => <NewsList key="news-list" />, []);
-  const profileComponent = useMemo(() => <UserProfile key="user-profile" />, []);
-  const walletComponent = useMemo(() => <Wallet key="wallet" />, []);
+  // 记录哪些 keepAlive 页面已经被访问过，用于「按需加载 + 保持状态」
+  const [visited, setVisited] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const route of keepAliveRoutes) {
+      // 首页默认认为已访问
+      initial[route.id] = route.path === '/';
+    }
+    return initial;
+  });
 
-  // 判断当前应该显示哪个组件
+  // 为每个 keepAlive 路由创建固定组件实例，保持状态
+  const keepAliveComponents = useMemo(() => {
+    const map = new Map<string, React.ReactNode>();
+    for (const route of keepAliveRoutes) {
+      const Element = route.component;
+      map.set(route.id, <Element key={route.id} />);
+    }
+    return map;
+  }, []);
+
+  // 判断当前是否在某个 keepAlive 路由下
+  const isActivePath = (path: string) => location.pathname === path;
   const isNewsDetail = location.pathname.startsWith('/news/') && location.pathname !== '/news';
-  const isChat = location.pathname === '/';
-  const isNewsList = location.pathname === '/news';
-  const isProfile = location.pathname === '/profile';
-  const isWallet = location.pathname === '/wallet';
+
+  // 路由变化时，标记对应页面为已访问，从而触发懒加载
+  useEffect(() => {
+    setVisited(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const route of keepAliveRoutes) {
+        if (isActivePath(route.path) && !next[route.id]) {
+          next[route.id] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [location.pathname]);
 
   return (
     <div className="app-wrapper">
       <Navigation />
       <div className="app-content">
-        {/* 渲染所有组件，但只显示当前匹配的 */}
-        {/* 聊天页面 - 使用 display: none 保持状态 */}
-        <div
-          style={{
-            display: isChat ? 'block' : 'none',
-            width: '100%',
-            height: '100%',
-            position: isChat ? 'relative' : 'absolute',
-            top: 0,
-            left: 0,
-          }}
-        >
-          {chatComponent}
-          </div>
-        
-        {/* 新闻列表页面 - 使用 display: none 保持状态 */}
-        <div
-          style={{
-            display: isNewsList ? 'block' : 'none',
-            width: '100%',
-            height: '100%',
-            position: isNewsList ? 'relative' : 'absolute',
-            top: 0,
-            left: 0,
-            overflow: 'hidden', // 父容器不滚动，让子容器滚动
-          }}
-        >
-          {newsListComponent}
-        </div>
+        {/* 渲染所有 keepAlive 组件，但只显示当前匹配的；用 Suspense 包一层以支持按需加载 */}
+        <Suspense fallback={<div style={{ color: '#999', padding: '16px', textAlign: 'center' }}>加载中...</div>}>
+          {keepAliveRoutes.map(route => {
+            if (!visited[route.id]) return null;
+            const isActive = isActivePath(route.path);
+            const element = keepAliveComponents.get(route.id);
+            return (
+              <div
+                key={route.id}
+                style={{
+                  display: isActive ? 'block' : 'none',
+                  width: '100%',
+                  height: '100%',
+                  position: isActive ? 'relative' : 'absolute',
+                  top: 0,
+                  left: 0,
+                  overflow: route.path === '/news' ? 'hidden' : 'visible',
+                }}>
+                {element}
+              </div>
+            );
+          })}
 
-        {/* 新闻详情页直接渲染（不缓存，每次都重新渲染） */}
-        {isNewsDetail && (
-          <div style={{ 
-            width: '100%', 
-            height: '100%', 
-            position: 'relative',
-            overflow: 'hidden', // 父容器不滚动，让子容器滚动
-          }}>
-            <Routes>
-              <Route path="/news/:id" element={<NewsDetail />} />
-            </Routes>
-          </div>
-        )}
-
-        {/* 个人信息配置页面 - 使用 display: none 保持状态 */}
-        <div
-          style={{
-            display: isProfile ? 'block' : 'none',
-            width: '100%',
-            height: '100%',
-            position: isProfile ? 'relative' : 'absolute',
-            top: 0,
-            left: 0,
-          }}
-        >
-          {profileComponent}
-        </div>
-
-        {/* 钱包页面 - 使用 display: none 保持状态 */}
-        <div
-          style={{
-            display: isWallet ? 'block' : 'none',
-            width: '100%',
-            height: '100%',
-            position: isWallet ? 'relative' : 'absolute',
-            top: 0,
-            left: 0,
-          }}
-        >
-          {walletComponent}
-        </div>
+          {/* 新闻详情页直接渲染（不缓存，每次都重新渲染） */}
+          {/* 非 keep-alive 页面（例如详情页）直接走 <Routes>，每次进入重新挂载 */}
+          {isNewsDetail && (
+            <div style={{ 
+              width: '100%', 
+              height: '100%', 
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              <Routes>
+                {normalRoutes.map(route => {
+                  const Element = route.component;
+                  return (
+                    <Route
+                      key={route.id}
+                      path={route.path}
+                      element={<Element />}
+                    />
+                  );
+                })}
+              </Routes>
+            </div>
+          )}
+        </Suspense>
       </div>
     </div>
   );

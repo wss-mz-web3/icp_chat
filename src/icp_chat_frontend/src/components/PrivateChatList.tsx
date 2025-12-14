@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { privateChatService, PrivateChatSession } from '../services/privateChatService';
 import { authService } from '../services/authService';
@@ -23,6 +23,8 @@ const PrivateChatList: React.FC<PrivateChatListProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [showUserSearchDialog, setShowUserSearchDialog] = useState(false);
+  const [showMenuPanel, setShowMenuPanel] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     checkAuth();
@@ -89,9 +91,14 @@ const PrivateChatList: React.FC<PrivateChatListProps> = ({
     }
   };
 
-  const handleUserSearch = (principal: string) => {
+  const handleUserSearch = async (principal: string) => {
     // 关闭对话框
     setShowUserSearchDialog(false);
+    setShowMenuPanel(false);
+    
+    // 刷新会话列表，确保新用户出现在列表中
+    await loadSessions();
+    
     // 导航到该用户的私聊页面
     if (onSessionSelect) {
       onSessionSelect(principal);
@@ -99,6 +106,33 @@ const PrivateChatList: React.FC<PrivateChatListProps> = ({
       navigate(`/private-chat/${encodeURIComponent(principal)}`);
     }
   };
+
+  // 点击外部关闭菜单面板
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const menuPanel = document.querySelector('.header-menu-panel');
+      
+      if (showMenuPanel && menuPanel) {
+        if (!menuPanel.contains(target) && 
+            menuButtonRef.current && 
+            !menuButtonRef.current.contains(target)) {
+          setShowMenuPanel(false);
+        }
+      }
+    };
+
+    if (showMenuPanel) {
+      // 使用 setTimeout 确保在点击事件处理完成后再添加监听器
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showMenuPanel]);
 
   const formatTime = (timestamp: bigint): string => {
     const date = new Date(Number(timestamp) / 1_000_000); // 纳秒转毫秒
@@ -163,16 +197,34 @@ const PrivateChatList: React.FC<PrivateChatListProps> = ({
           <span className="header-icon">💬</span>
           <h2>Chats</h2>
         </div>
-        <button
-          className="header-menu-button"
-          title="更多选项"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowUserSearchDialog(true);
-          }}
-        >
-          ⋮
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button
+            ref={menuButtonRef}
+            className="header-menu-button"
+            title="更多选项"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenuPanel(!showMenuPanel);
+            }}
+          >
+            ⋮
+          </button>
+          {showMenuPanel && (
+            <div className="header-menu-panel">
+              <button
+                className="header-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenuPanel(false);
+                  setShowUserSearchDialog(true);
+                }}
+              >
+                <span>🔍</span>
+                <span>查找</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="private-chat-list-search">

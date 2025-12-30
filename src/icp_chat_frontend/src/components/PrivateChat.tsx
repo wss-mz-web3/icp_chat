@@ -167,6 +167,17 @@ const PrivateChat: React.FC = () => {
       if (result.success && result.message) {
         setMessages(prev => [...prev, result.message!]);
         setReplyingTo(null);
+        
+        // 通知其他组件（如 PrivateChatList）消息已发送，需要刷新会话列表
+        if (typeof window !== 'undefined') {
+          const BC: typeof BroadcastChannel | undefined = (window as any).BroadcastChannel;
+          if (BC) {
+            const channel = new BC('icp-chat-message-sync');
+            channel.postMessage({ type: 'PRIVATE_MESSAGE_SENT' });
+            channel.close();
+          }
+        }
+        
         // 滚动到底部
         setTimeout(() => {
           const messageList = document.querySelector('.message-list');

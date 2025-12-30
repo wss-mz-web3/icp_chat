@@ -233,6 +233,9 @@ const UserProfile: React.FC = () => {
                 placeholder="例如：小电视、xx的直播间"
                 required
               />
+              <span className="field-desc">
+                每个用户只能使用唯一的昵称（不区分大小写），其他人可以通过昵称搜索并联系你
+              </span>
             </label>
 
             <label className="key-management-label">

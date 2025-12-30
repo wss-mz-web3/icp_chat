@@ -3,6 +3,7 @@ import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Int64 "mo:base/Int64";
 import Text "mo:base/Text";
+import Char "mo:base/Char";
 import Time "mo:base/Time";
 import Array "mo:base/Array";
 import Principal "mo:base/Principal";
@@ -109,6 +110,7 @@ actor ICPChat {
     groupKeysStable := groupKeysToArray();
     userProfilesStable := userProfilesToArray();
     // 注意：messages 和 privateMessages 是 stable var，会自动持久化，不需要手动处理
+    // 注意：nicknameToPrincipal 会在 userProfilesFromArray 中恢复，不需要单独存储
   };
   
   // 系统升级时恢复数据
@@ -386,6 +388,28 @@ actor ICPChat {
   // 用户资料存储：Principal -> UserProfile
   var userProfiles : HashMap.HashMap<Principal, UserProfile> = HashMap.HashMap<Principal, UserProfile>(0, Principal.equal, Principal.hash);
 
+  // 昵称到Principal的映射：昵称（小写） -> Principal，用于昵称唯一性验证和搜索
+  var nicknameToPrincipal : HashMap.HashMap<Text, Principal> = HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
+
+  // 辅助函数：将Text转为小写（用于昵称唯一性验证和搜索）
+  // 使用Text库的字符迭代功能，将A-Z转为a-z
+  private func toLowerCase(text : Text) : Text {
+    var result : Text = "";
+    for (char in text.chars()) {
+      // 检查是否为A-Z（ASCII 65-90）
+      let code = Char.toNat32(char);
+      if (code >= 65 and code <= 90) {
+        // A-Z 转为 a-z（ASCII 97-122）
+        let lowerCode = code + 32;
+        let lowerChar = Char.fromNat32(lowerCode);
+        result := result # Char.toText(lowerChar);
+      } else {
+        result := result # Char.toText(char);
+      };
+    };
+    result
+  };
+
   // 将用户资料 HashMap 转换为数组用于序列化
   private func userProfilesToArray() : [(Principal, UserProfile)] {
     var arr : [(Principal, UserProfile)] = [];
@@ -398,8 +422,12 @@ actor ICPChat {
   // 从数组恢复用户资料 HashMap
   private func userProfilesFromArray(arr : [(Principal, UserProfile)]) {
     userProfiles := HashMap.HashMap<Principal, UserProfile>(0, Principal.equal, Principal.hash);
+    nicknameToPrincipal := HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
     for ((principal, profile) in arr.vals()) {
       userProfiles.put(principal, profile);
+      // 恢复昵称映射（昵称转为小写以支持不区分大小写的搜索）
+      let nicknameLower = toLowerCase(profile.nickname);
+      nicknameToPrincipal.put(nicknameLower, principal);
     };
   };
 
@@ -520,6 +548,34 @@ actor ICPChat {
       return #err("昵称长度不能超过 50 个字符");
     };
 
+    // 昵称唯一性验证：检查昵称是否已被其他用户使用（不区分大小写）
+    let nicknameLower = toLowerCase(profile.nickname);
+    
+    switch (nicknameToPrincipal.get(nicknameLower)) {
+      case (?existingPrincipal) {
+        // 如果昵称已被使用，检查是否是当前用户自己
+        if (not Principal.equal(existingPrincipal, caller)) {
+          return #err("该昵称已被其他用户使用，请选择其他昵称");
+        };
+        // 如果是当前用户，允许更新（昵称不变或改为新昵称）
+      };
+      case (null) {
+        // 昵称未被使用，可以设置
+      };
+    };
+
+    // 获取旧昵称（如果存在），用于清理旧的昵称映射
+    switch (userProfiles.get(caller)) {
+      case (?oldProfile) {
+        let oldNicknameLower = toLowerCase(oldProfile.nickname);
+        // 如果昵称改变了，删除旧的昵称映射
+        if (oldNicknameLower != nicknameLower) {
+          nicknameToPrincipal.delete(oldNicknameLower);
+        };
+      };
+      case (null) {};
+    };
+
     // 头像、颜色、签名增加简单长度限制，避免滥用
     switch (profile.avatar) {
       case (null) {};
@@ -549,7 +605,11 @@ actor ICPChat {
       };
     };
 
+    // 保存用户资料
     userProfiles.put(caller, profile);
+    
+    // 更新昵称映射
+    nicknameToPrincipal.put(nicknameLower, caller);
     
     // 更新该用户发送的所有历史消息中的 author、authorAvatar、authorColor
     // 只更新已登录用户的消息（匿名用户没有 Principal，无法匹配）
@@ -598,6 +658,57 @@ actor ICPChat {
     //   return null;
     // };
     userProfiles.get(caller)
+  };
+
+  // 通过 Principal 获取用户资料（用于搜索时显示用户信息）
+  public query func getUserProfileByPrincipal(principal : Principal) : async ?{
+    principal : Principal;
+    profile : UserProfile;
+  } {
+    switch (userProfiles.get(principal)) {
+      case (?profile) {
+        ?{
+          principal = principal;
+          profile = profile;
+        }
+      };
+      case (null) {
+        null
+      };
+    }
+  };
+
+  // 通过昵称搜索用户（不区分大小写）
+  // 返回用户的 Principal 和资料信息
+  public query func searchUserByNickname(nickname : Text) : async ?{
+    principal : Principal;
+    profile : UserProfile;
+  } {
+    if (Text.size(nickname) == 0) {
+      return null;
+    };
+    
+    // 将昵称转为小写进行搜索
+    let nicknameLower = toLowerCase(nickname);
+    
+    switch (nicknameToPrincipal.get(nicknameLower)) {
+      case (?principal) {
+        switch (userProfiles.get(principal)) {
+          case (?profile) {
+            ?{
+              principal = principal;
+              profile = profile;
+            }
+          };
+          case (null) {
+            null
+          };
+        }
+      };
+      case (null) {
+        null
+      };
+    }
   };
 
   // ========== 私聊相关 API ==========

@@ -102,6 +102,69 @@ class UserProfileService {
       };
     }
   }
+
+  /**
+   * 通过昵称搜索用户
+   */
+  async searchUserByNickname(nickname: string): Promise<{
+    principal: string;
+    profile: UserProfile;
+  } | null> {
+    await this.ensureActor();
+
+    try {
+      if (typeof this.actor!.searchUserByNickname !== 'function') {
+        console.warn('[UserProfileService] 后端未部署昵称搜索接口，请重新部署 canister');
+        return null;
+      }
+
+      const result = await this.actor!.searchUserByNickname(nickname);
+      if (!result || result.length === 0) {
+        return null;
+      }
+
+      const userData = result[0];
+      return {
+        principal: userData.principal.toString(),
+        profile: this.fromBackendProfile(userData.profile),
+      };
+    } catch (error) {
+      console.error('[UserProfileService] 搜索用户失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 通过 Principal 获取用户资料
+   */
+  async getUserProfileByPrincipal(principal: string): Promise<{
+    principal: string;
+    profile: UserProfile;
+  } | null> {
+    await this.ensureActor();
+
+    try {
+      if (typeof this.actor!.getUserProfileByPrincipal !== 'function') {
+        console.warn('[UserProfileService] 后端未部署通过Principal获取用户资料接口，请重新部署 canister');
+        return null;
+      }
+
+      // Principal在Candid接口中自动转换为string
+      const result = await this.actor!.getUserProfileByPrincipal(principal);
+      if (!result || result.length === 0) {
+        return null;
+      }
+
+      const userData = result[0];
+      return {
+        principal: userData.principal.toString(),
+        profile: this.fromBackendProfile(userData.profile),
+      };
+    } catch (error) {
+      console.error('[UserProfileService] 获取用户资料失败:', error);
+      return null;
+    }
+  }
 }
 
 export const userProfileService = new UserProfileService();

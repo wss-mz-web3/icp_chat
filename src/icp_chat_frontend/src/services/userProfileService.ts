@@ -119,13 +119,21 @@ class UserProfileService {
       }
 
       const result = await this.actor!.searchUserByNickname(nickname);
+      console.log('[UserProfileService] 昵称搜索原始结果:', result);
+      
       if (!result || result.length === 0) {
+        console.log('[UserProfileService] 昵称搜索未找到用户:', nickname);
         return null;
       }
 
       const userData = result[0];
+      console.log('[UserProfileService] 昵称搜索成功，用户数据:', userData);
+      
+      // Principal在Candid中返回为string
+      const principalStr = String(userData.principal);
+      
       return {
-        principal: userData.principal.toString(),
+        principal: principalStr,
         profile: this.fromBackendProfile(userData.profile),
       };
     } catch (error) {
@@ -149,15 +157,23 @@ class UserProfileService {
         return null;
       }
 
-      // Principal在Candid接口中自动转换为string
+      // Principal在Candid接口中自动转换为string，直接传递即可
       const result = await this.actor!.getUserProfileByPrincipal(principal);
+      console.log('[UserProfileService] 通过Principal获取用户资料原始结果:', result);
+      
       if (!result || result.length === 0) {
+        console.log('[UserProfileService] 通过Principal未找到用户资料:', principal);
         return null;
       }
 
       const userData = result[0];
+      console.log('[UserProfileService] 通过Principal获取用户资料成功，用户数据:', userData);
+      
+      // Principal在Candid中返回为string
+      const principalStr = String(userData.principal);
+      
       return {
-        principal: userData.principal.toString(),
+        principal: principalStr,
         profile: this.fromBackendProfile(userData.profile),
       };
     } catch (error) {

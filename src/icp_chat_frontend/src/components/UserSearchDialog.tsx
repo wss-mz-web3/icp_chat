@@ -52,19 +52,32 @@ const UserSearchDialog: React.FC<UserSearchDialogProps> = ({
         principal = trimmedUid;
       } catch (e) {
         // 不是有效的Principal，尝试作为昵称搜索
-        const searchResult = await userProfileService.searchUserByNickname(trimmedUid);
-        if (searchResult) {
-          principal = searchResult.principal;
-          setSearchResult({
-            principal: searchResult.principal,
-            nickname: searchResult.profile.nickname,
-            avatar: searchResult.profile.avatar || null,
-          });
-          setError(null);
-          setIsValidating(false);
-          return;
-        } else {
-          setError('未找到该昵称的用户，请检查昵称是否正确');
+        console.log('[UserSearchDialog] 不是有效的Principal，尝试作为昵称搜索:', trimmedUid);
+        try {
+          console.log('[UserSearchDialog] 调用searchUserByNickname...');
+          const searchResult = await userProfileService.searchUserByNickname(trimmedUid);
+          console.log('[UserSearchDialog] 昵称搜索结果:', searchResult);
+          
+          if (searchResult) {
+            principal = searchResult.principal;
+            console.log('[UserSearchDialog] 找到用户，Principal:', principal, '昵称:', searchResult.profile.nickname);
+            setSearchResult({
+              principal: searchResult.principal,
+              nickname: searchResult.profile.nickname,
+              avatar: searchResult.profile.avatar || null,
+            });
+            setError(null);
+            setIsValidating(false);
+            return;
+          } else {
+            console.log('[UserSearchDialog] 未找到该昵称的用户');
+            setError('未找到该昵称的用户，请检查昵称是否正确');
+            setIsValidating(false);
+            return;
+          }
+        } catch (searchError) {
+          console.error('[UserSearchDialog] 昵称搜索失败:', searchError);
+          setError('搜索失败，请检查网络连接或稍后重试: ' + (searchError instanceof Error ? searchError.message : String(searchError)));
           setIsValidating(false);
           return;
         }
@@ -93,10 +106,24 @@ const UserSearchDialog: React.FC<UserSearchDialogProps> = ({
           displayAvatar = existingSession.otherAvatar || null;
         } else {
           // 尝试通过Principal获取用户资料
-          const userData = await userProfileService.getUserProfileByPrincipal(principal);
-          if (userData) {
-            displayNickname = userData.profile.nickname;
-            displayAvatar = userData.profile.avatar || null;
+          try {
+            console.log('[UserSearchDialog] 准备通过Principal获取用户资料:', principal);
+            const userData = await userProfileService.getUserProfileByPrincipal(principal);
+            console.log('[UserSearchDialog] getUserProfileByPrincipal返回结果:', userData);
+            
+            if (userData && userData.profile) {
+              displayNickname = userData.profile.nickname;
+              displayAvatar = userData.profile.avatar || null;
+              console.log('[UserSearchDialog] 通过Principal获取到用户资料 - 昵称:', displayNickname, '头像:', displayAvatar);
+            } else {
+              console.log('[UserSearchDialog] 通过Principal未找到用户资料，使用Principal作为显示');
+              // 如果未找到用户资料，至少显示Principal的前几个字符
+              displayNickname = principal.slice(0, 20) + (principal.length > 20 ? '...' : '');
+            }
+          } catch (error) {
+            console.error('[UserSearchDialog] 获取用户资料失败:', error);
+            // 如果获取失败，使用Principal作为显示
+            displayNickname = principal.slice(0, 20) + (principal.length > 20 ? '...' : '');
           }
         }
         

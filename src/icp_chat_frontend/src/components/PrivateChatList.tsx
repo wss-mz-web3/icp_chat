@@ -77,7 +77,13 @@ const PrivateChatList: React.FC<PrivateChatListProps> = ({
     try {
       setLoading(true);
       setError(null);
+      console.log('[PrivateChatList] 开始加载会话列表...');
       const sessionList = await privateChatService.getPrivateChatSessions();
+      console.log('[PrivateChatList] 加载会话列表成功，会话数:', sessionList.length);
+      console.log('[PrivateChatList] 会话列表详情:', sessionList.map(s => ({
+        principal: s.otherPrincipal,
+        nickname: s.otherNickname
+      })));
       setSessions(sessionList);
     } catch (e) {
       console.error('[PrivateChatList] 加载会话列表失败:', e);
@@ -119,21 +125,28 @@ const PrivateChatList: React.FC<PrivateChatListProps> = ({
     
     // 检查该用户是否已经在会话列表中（精确匹配）
     const trimmedPrincipal = principal.trim();
+    console.log('[PrivateChatList] 开始处理用户搜索，Principal:', trimmedPrincipal);
+    console.log('[PrivateChatList] 当前会话列表:', sessions);
+    
     const existingSession = sessions.find(
       session => {
         const sessionPrincipal = String(session.otherPrincipal).trim();
-        return sessionPrincipal === trimmedPrincipal || 
+        const isMatch = sessionPrincipal === trimmedPrincipal || 
                sessionPrincipal.toLowerCase() === trimmedPrincipal.toLowerCase();
+        console.log('[PrivateChatList] 比较会话Principal:', sessionPrincipal, '与搜索Principal:', trimmedPrincipal, '匹配:', isMatch);
+        return isMatch;
       }
     );
     
     // 如果用户不在会话列表中，尝试发送一条欢迎消息来创建会话
     if (!existingSession) {
+      console.log('[PrivateChatList] 用户不在会话列表中，创建新会话，Principal:', trimmedPrincipal);
       try {
         // 确保 privateChatService 已初始化
         await privateChatService.initialize(true);
         
         // 发送一条欢迎消息来创建会话
+        console.log('[PrivateChatList] 准备发送欢迎消息到Principal:', trimmedPrincipal);
         const result = await privateChatService.sendPrivateMessage(
           trimmedPrincipal, 
           '👋', 
@@ -141,41 +154,50 @@ const PrivateChatList: React.FC<PrivateChatListProps> = ({
           null
         );
         
+        console.log('[PrivateChatList] 发送消息结果:', result);
+        
         if (result.success) {
+          console.log('[PrivateChatList] 欢迎消息发送成功，开始刷新会话列表');
           // 消息发送成功后，立即刷新会话列表
           await loadSessions();
+          console.log('[PrivateChatList] 首次刷新完成，当前会话数:', sessions.length);
           
-          // 再延迟刷新一次，确保数据同步
+          // 延迟刷新，确保后端数据已更新
           setTimeout(async () => {
+            console.log('[PrivateChatList] 延迟刷新会话列表 (500ms)');
             await loadSessions();
           }, 500);
+          
+          setTimeout(async () => {
+            console.log('[PrivateChatList] 延迟刷新会话列表 (1500ms)');
+            await loadSessions();
+          }, 1500);
         } else {
           console.warn('[PrivateChatList] 发送欢迎消息失败:', result.error);
         }
       } catch (error) {
-        // 如果发送失败（比如用户不存在或网络问题），仍然导航到私聊页面
-        console.warn('[PrivateChatList] 创建会话失败，将导航到私聊页面:', error);
+        // 如果发送失败（比如用户不存在或网络问题），记录错误但继续
+        console.error('[PrivateChatList] 创建会话失败:', error);
       }
     } else {
+      console.log('[PrivateChatList] 用户已在会话列表中:', existingSession);
       // 如果用户已在列表中，也刷新一次确保数据最新
       await loadSessions();
     }
     
-    // 导航到该用户的私聊页面
+    // 无论是否创建成功，都导航到该用户的私聊页面
+    console.log('[PrivateChatList] 导航到私聊页面，Principal:', trimmedPrincipal);
     if (onSessionSelect) {
       onSessionSelect(trimmedPrincipal);
     } else {
       navigate(`/private-chat/${encodeURIComponent(trimmedPrincipal)}`);
     }
     
-    // 延迟刷新会话列表，确保新创建的会话能及时显示
+    // 最终刷新会话列表，确保新创建的会话能及时显示
     setTimeout(async () => {
+      console.log('[PrivateChatList] 最终刷新会话列表 (2000ms)');
       await loadSessions();
-    }, 1000);
-    
-    setTimeout(async () => {
-      await loadSessions();
-    }, 3000);
+    }, 2000);
   };
 
   // 点击外部关闭菜单面板
